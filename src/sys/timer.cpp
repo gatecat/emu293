@@ -1,0 +1,94 @@
+#include "timer.h"
+#include "irq_if.h"
+#include <cstdio>
+using namespace std;
+
+//Limited timer support. No PWM or capture/compare
+
+#define NTIMERS 6
+
+#define TIMER_CTRL				0
+#define TIMER_CTRL_EN			31U
+#define TIMER_CTRL_IRQ_EN		27U
+#define TIMER_CTRL_IRQ_FLAG 	26U
+
+#define TIMER_CTRL_CCP 			1
+#define TIMER_PRELOAD 			2
+#define TIMER_CPP_REGS			3
+#define TIMER_UPCOUNT			4
+#define TIMER_NREGS				5
+
+
+namespace Emu293 {
+
+	uint32_t timer_regs[NTIMERS][TIMER_NREGS] = {0};
+
+	void InitTimerDevice(PeripheralInitInfo initInfo) {
+
+	}
+	void TimerTick() {
+		for(int i = 0; i < NTIMERS; i++) {
+			//printf("tmr%d st = 0x%08x\n",i,timer_regs[i][TIMER_CTRL]);
+			if(check_bit(timer_regs[i][TIMER_CTRL],TIMER_CTRL_EN) && (check_bit(timer_regs[i][TIMER_CTRL_CCP],31)==check_bit(timer_regs[i][TIMER_CTRL_CCP],30))) {
+				//printf("tck tmr%d\n",i);
+				if(timer_regs[i][TIMER_UPCOUNT] <= 0xFFFF) {
+					timer_regs[i][TIMER_UPCOUNT]++;
+				} else {
+					//printf("ovf tmr%d\n",i);
+					timer_regs[i][TIMER_UPCOUNT] = timer_regs[i][TIMER_PRELOAD];
+					if(check_bit(timer_regs[i][TIMER_CTRL],TIMER_CTRL_IRQ_EN)) {
+						SetIRQState(56, true);
+						set_bit(timer_regs[i][TIMER_CTRL],TIMER_CTRL_IRQ_FLAG);
+					}
+				}
+			}
+		}
+	}
+	uint32_t TimerDeviceReadHandler(uint16_t addr) {
+		uint32_t tmr = (addr >> 12) & 0x0F;
+		if(tmr >= NTIMERS) {
+			printf("TMR device read error: address 0x%04x out of bounds\n",addr);
+			return 0;
+		} else {
+			uint32_t addr32 = (addr & 0xFF) / 4;
+			if(addr32 >= TIMER_NREGS) {
+				printf("TMR device read error: address 0x%04x out of bounds\n",addr);
+				return 0;
+			} else {
+				return timer_regs[tmr][addr32];
+			}
+		}
+	}
+	void TimerDeviceWriteHandler(uint16_t addr, uint32_t val) {
+		uint32_t tmr = (addr >> 12) & 0x0F;
+		if(tmr >= NTIMERS) {
+			printf("TMR device read error: address 0x%04x out of bounds\n",addr);
+		} else {
+			uint32_t addr32 = (addr & 0xFF) / 4;
+			if(addr32 >= TIMER_NREGS) {
+				printf("TMR device read error: address 0x%04x out of bounds\n",addr);
+			} else {
+			//	printf("TMR%d Write 0x%08x to 0x%02x!\n",tmr, val,addr32);
+
+				timer_regs[tmr][addr32] = val;
+				if(addr32 == TIMER_CTRL) {
+					if(check_bit(val,TIMER_CTRL_IRQ_FLAG) || (!check_bit(val,TIMER_CTRL_EN)) || (!check_bit(val,TIMER_CTRL_IRQ_EN))) {
+						SetIRQState(56, false);
+						clear_bit(timer_regs[tmr][TIMER_CTRL],TIMER_CTRL_IRQ_FLAG);
+					}
+				}
+				if(addr32 == TIMER_PRELOAD) {
+					timer_regs[tmr][TIMER_UPCOUNT] = val;
+				}
+			}
+		}
+
+	}
+
+	const Peripheral TimerPeripheral = {
+			"TIMER",
+			InitTimerDevice,
+			TimerDeviceReadHandler,
+			TimerDeviceWriteHandler
+	};
+}
