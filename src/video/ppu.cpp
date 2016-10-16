@@ -116,6 +116,7 @@ const int ppu_vcmp_offset = 1;
 const int ppu_vcmp_step = 2;
 // add the zero-based text layer number to this register
 const int ppu_text_trans_iidx = 0x80;
+
 // Limited PPUDMA support
 const int ppu_dma_ctrl = 0x94;
 
@@ -189,12 +190,6 @@ int PPUDMA_Thread(void *data) {
     ppudma_workAvailable = false;
   }
   return 0;
-}
-
-void InitPPUThreads() {
-  ppudma_mutex = SDL_CreateMutex();
-  ppudma_cvar = SDL_CreateCond();
-  ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
 }
 
 static inline uint32_t Argb1555ToCustomFormat(uint16_t argb1555) {
@@ -326,7 +321,7 @@ static inline void RAMToCustomFormat(uint8_t *ram, uint32_t *out, int count,
                                      int bpp) {
   if ((!argb1555) & (!rgb565)) { // palette encoded
     uint8_t *temp = new uint8_t[count];
-    UnpackByteArray(ram, temp, count, bpp);
+    UnpackByteArray(ram, temp, bpp, count);
     DepalettizeByteArray(temp, out, count, pbank, bpp);
     delete[] temp;
   } else if (argb1555) {
@@ -371,13 +366,19 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
                            int layerNo) {
   bool hflip = check_bit(attr, ppu_tattr_hflip);
   bool vflip = check_bit(attr, ppu_tattr_vflip);
+  bool trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
   int bank = get_bits(attr, 8, 5);
-  int bpp = bpp = ppu_bpp_values[attr & 0x03];
-
+  int bpp = ppu_bpp_values[attr & 0x03];
+  if (chno != 0) {
+    printf("chr 0x%08x\n", chno);
+    printf("dat = 0x%08x\n",
+           *reinterpret_cast<uint32_t *>(memptr + (chno & 0x01FFFFFF)));
+    // exit(1);
+  }
   // convert char to a format we like
   uint32_t *chfmtd = new uint32_t[chwidth * chheight];
-  RAMToCustomFormat(chbuf + (chno * (chwidth * chheight * bpp) / 8), chfmtd,
-                    chwidth * chheight, bank, false, false, bpp);
+  RAMToCustomFormat(memptr + (chno & 0x01FFFFFF), chfmtd, chwidth * chheight,
+                    bank, false, false, bpp);
 
   for (int y = 0; y < chheight; y++) {
     int outy;
@@ -393,7 +394,11 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
       } else {
         outx = posx + x;
       }
-      textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
+      if (trans) {
+        textLayers[layerNo][outy][outx] = 0x80000000;
+      } else {
+        textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
+      }
     }
   }
   delete[] chfmtd;
@@ -490,7 +495,65 @@ void InitPPUDevice(PeripheralInitInfo initInfo) {
   memptr = get_dma_ptr(0xA0000000);
 }
 
-void PPURender() {}
+SDL_Window *ppu_window;
+SDL_Renderer *ppuwin_renderer;
+void InitPPUThreads() {
+  ppudma_mutex = SDL_CreateMutex();
+  ppudma_cvar = SDL_CreateCond();
+  ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
+  ppu_window = SDL_CreateWindow("emu293", SDL_WINDOWPOS_CENTERED,
+                                SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+  if (ppu_window == nullptr) {
+    printf("Failed to create window: %s.\n", SDL_GetError());
+    exit(1);
+  }
+  ppuwin_renderer =
+      SDL_CreateRenderer(ppu_window, -1, SDL_RENDERER_ACCELERATED);
+}
+static void PPURender() {
+  for (int y = 0; y < 480; y++) {
+    for (int x = 0; x < 640; x++) {
+      rendered[y][x] = 0;
+    }
+  }
+  for (int layer = 0; layer < 3; layer++) {
+    RenderTextLayer(layer);
+  }
+
+  for (int depth = 0; depth < 4; depth++) {
+    for (int layer = 0; layer < 3; layer++) {
+      if (get_bits(ppu_regs[ppu_text_begin[layer] + ppu_text_attr], 13, 2) ==
+          depth) {
+        printf("render layer %d\n", layer);
+        // MergeTextLayer(layer);
+        for (int y = 0; y < 480; y++) {
+          for (int x = 0; x < 640; x++) {
+            rendered[y][x] |= (textLayers[layer][y][x] & 0xFFFF);
+          }
+        }
+      }
+    }
+  }
+  SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(
+      (void *)rendered, 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);
+
+  SDL_Texture *tex = SDL_CreateTextureFromSurface(ppuwin_renderer, surf);
+  SDL_RenderClear(ppuwin_renderer);
+  SDL_RenderCopy(ppuwin_renderer, tex, nullptr, nullptr);
+  SDL_RenderPresent(ppuwin_renderer);
+  SDL_DestroyTexture(tex);
+  SDL_FreeSurface(surf);
+}
+
+void PPUUpdate() {
+  SDL_Event e;
+  while (SDL_PollEvent(&e)) {
+    if (e.type == SDL_QUIT)
+      break;
+  }
+  PPURender();
+  // SDL_Delay(1000);
+}
 
 void PPUTick() {
   // simulate some kind of vblank to keep the app happy
@@ -502,10 +565,12 @@ void PPUTick() {
     }
   } else if (curr_line == 50) {
     curr_line++;
+    PPUUpdate();
     if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkend)) {
       SetIRQState(ppu_intno_vblkend, true);
       set_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkend);
     }
+
   } else {
     curr_line++;
   }

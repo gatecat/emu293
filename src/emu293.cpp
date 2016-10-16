@@ -48,13 +48,13 @@ int main(int argc, char *argv[]) {
       // SDL_Delay(1);
     }
 
-    if ((icount % 40000) == 5000) {
+    if ((icount % 10000) == 5000) {
       PPUTick();
 
       // SDL_Delay(1);
     }
 
-    if ((icount % 40000) == 7000) {
+    if ((icount % 10000) == 7000) {
       TVETick();
 
       // SDL_Delay(1);
