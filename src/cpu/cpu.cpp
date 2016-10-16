@@ -56,13 +56,13 @@ void CPU::step() {
   if(pc == 0xa0e0fb20) {
 //		debugDump(false);
   }*/
-  if (pc == 0Xa0c10e08) {
+  if (pc == 0xa0c01960) {
     debugDump(true);
     exit(1);
   }
-  /* if ((pc - lastpc) > 4) {
-     printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
- }*/
+  if ((pc - lastpc) > 0x4) {
+    printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
+  }
   lastpc = pc;
 
   if (queuedInterrupt != -1) {
@@ -78,8 +78,8 @@ void CPU::step() {
     cr5 = pc;
 
     // Jump to interrupt
-    pc = cr3 + 0x1FC + (queuedInterrupt * 4);
-    // printf("INT %d\n",queuedInterrupt);
+    pc = cr3 + 0x200 + (queuedInterrupt * 4);
+    printf("Jumping to IRQ handler at %08x\n", pc);
     queuedInterrupt = -1;
   }
   if ((pc & 0xFE000000) == 0xA0000000) {

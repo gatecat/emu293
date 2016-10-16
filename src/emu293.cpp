@@ -22,7 +22,8 @@ int main(int argc, char *argv[]) {
   printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
   InitAPBDMAThreads();
   InitBLNDMAThread();
-  SD_InitCard("/mnt/data/spg293/a21r/sd.img");
+  InitPPUThreads();
+  SD_InitCard("/mnt/data/spg293/a21r/sdc.img");
 
   CPU scoreCPU;
 

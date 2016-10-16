@@ -16,7 +16,7 @@ using namespace std;
 #define INT_REGS_SIZE 0x000A
 
 namespace Emu293 {
-static uint32_t int_regs[INT_REGS_SIZE / 4] = {0};
+static uint32_t int_regs[INT_REGS_SIZE] = {0};
 static CPU *currentCPU;
 static bool interruptsEnabled = true;
 static bitset<64> intsFired;

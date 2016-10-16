@@ -465,6 +465,7 @@ void PPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
     } else {
       // clear IRQ
       SetIRQState(ppu_intno_ppudma, false);
+      clear_bit(ppu_regs[ppu_irq_status], ppu_irq_ppudma);
     }
   } else if (addr == ppu_irq_status) {
     // writing to IRQ status appears to clear IRQ based on app code?
