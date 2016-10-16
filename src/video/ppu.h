@@ -1,10 +1,12 @@
 #pragma once
-#include "../peripheral.h"
 #include "../helper.h"
+#include "../peripheral.h"
 
 namespace Emu293 {
-	extern const Peripheral PPUPeripheral;
+extern const Peripheral PPUPeripheral;
 
-	//Must only be called once
-	void InitPPUThreads();
+// Must only be called once
+void InitPPUThreads();
+
+void PPUTick();
 }

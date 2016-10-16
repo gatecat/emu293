@@ -151,6 +151,52 @@ static bool ppudma_workAvailable = false;
 static uint32_t textLayers[3][512][1024];
 uint16_t rendered[480][640];
 
+uint16_t curr_line = 0;
+
+int PPUDMA_Thread(void *data) {
+  while (true) {
+    SDL_LockMutex(ppudma_mutex);
+    while (!ppudma_workAvailable) {
+      SDL_CondWait(ppudma_cvar, ppudma_mutex);
+    }
+    SDL_UnlockMutex(ppudma_mutex);
+
+    if (!check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_en)) {
+      ppudma_workAvailable = false;
+      continue;
+    }
+
+    uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x01FFFFFF);
+    uint32_t *ppuptr = ppu_regs + ((ppu_regs[ppu_dma_ppu_saddr] & 0xFFFF) / 4);
+    //+1 based on driver, needs checking
+    for (int i = 0; i < (ppu_regs[ppu_dma_word_cnt] + 1); i++) {
+      if (check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_dir)) {
+        // PPU to RAM
+        *ppuptr = get_uint32le(ramptr);
+      } else {
+        // RAM to PPU
+        set_uint32le(ramptr, *ppuptr);
+      }
+      ramptr += 4;
+      ppuptr++;
+    }
+
+    clear_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_en);
+    set_bit(ppu_regs[ppu_irq_status], ppu_irq_ppudma);
+    if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_ppudma)) {
+      SetIRQState(ppu_intno_ppudma, true);
+    }
+    ppudma_workAvailable = false;
+  }
+  return 0;
+}
+
+void InitPPUThreads() {
+  ppudma_mutex = SDL_CreateMutex();
+  ppudma_cvar = SDL_CreateCond();
+  ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
+}
+
 static inline uint32_t Argb1555ToCustomFormat(uint16_t argb1555) {
   if (argb1555 & 0x8000)
     return 0x80000000;
@@ -406,4 +452,62 @@ static void RenderTextLayer(int layerNo) {
     }
   }
 }
+
+void PPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
+  addr /= 4;
+  ppu_regs[addr] = val;
+  if (addr == ppu_dma_ctrl) {
+    if (check_bit(val, ppu_dma_ctrl_en)) {
+      SDL_LockMutex(ppudma_mutex);
+      ppudma_workAvailable = true;
+      SDL_CondSignal(ppudma_cvar);
+      SDL_UnlockMutex(ppudma_mutex);
+    } else {
+      // clear IRQ
+      SetIRQState(ppu_intno_ppudma, false);
+    }
+  } else if (addr == ppu_irq_status) {
+    // writing to IRQ status appears to clear IRQ based on app code?
+    if (check_bit(val, ppu_irq_vblkstart)) {
+      SetIRQState(ppu_intno_vblkstart, false);
+      clear_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkstart);
+    }
+    if (check_bit(val, ppu_irq_vblkend)) {
+      SetIRQState(ppu_intno_vblkend, false);
+      clear_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkend);
+    }
+    if (check_bit(val, ppu_irq_ppudma)) {
+      SetIRQState(ppu_intno_ppudma, false);
+      clear_bit(ppu_regs[ppu_irq_status], ppu_irq_ppudma);
+    }
+  }
+}
+
+uint32_t PPUDeviceReadHandler(uint16_t addr) { return ppu_regs[addr / 4]; }
+
+void InitPPUDevice(PeripheralInitInfo initInfo) {
+  memptr = get_dma_ptr(0xA0000000);
+}
+
+void PPUTick() {
+  // simulate some kind of vblank to keep the app happy
+  if (curr_line == 800) {
+    curr_line = 0;
+    if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkstart)) {
+      SetIRQState(ppu_intno_vblkstart, true);
+      set_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkstart);
+    }
+  } else if (curr_line == 50) {
+    curr_line++;
+    if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkend)) {
+      SetIRQState(ppu_intno_vblkend, true);
+      set_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkend);
+    }
+  } else {
+    curr_line++;
+  }
+}
+
+const Peripheral PPUPeripheral = {"PPU", InitPPUDevice, PPUDeviceReadHandler,
+                                  PPUDeviceWriteHandler};
 }

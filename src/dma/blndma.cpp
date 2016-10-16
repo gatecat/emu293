@@ -294,7 +294,7 @@ int BLNDMA_Thread(void *data) {
   return 0;
 }
 
-void InitBLNDMAThreads() {
+void InitBLNDMAThread() {
   blndma_mutex = SDL_CreateMutex();
   blndma_cvar = SDL_CreateCond();
   blndma_thread = SDL_CreateThread(BLNDMA_Thread, "BLNDMA", nullptr);
@@ -304,7 +304,7 @@ void InitBLNDMADevice(PeripheralInitInfo initInfo) {
   memptr = get_dma_ptr(0xA0000000);
 }
 
-uint32_t BLNDMAADeviceReadHandler(uint16_t addr) {
+uint32_t BLNDMADeviceReadHandler(uint16_t addr) {
   if ((addr / 4) < blndma_regcount) {
     return blndma_regs[addr / 4];
   } else {
@@ -362,8 +362,10 @@ void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         SetBlockInfo(srcA, blndma_abase_addr);
         SetBlockInfo(srcB, blndma_abase_addr);
         SetBlockInfo(dest, blndma_abase_addr);
-
+        SDL_LockMutex(blndma_mutex);
         blndma_workAvailable = true;
+        SDL_CondSignal(blndma_cvar);
+        SDL_UnlockMutex(blndma_mutex);
       }
     }
   } else {
@@ -371,4 +373,7 @@ void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
            addr * 4, val);
   }
 }
+const Peripheral BLNDMAPeripheral = {"BLNDMA", InitBLNDMADevice,
+                                     BLNDMADeviceReadHandler,
+                                     BLNDMADeviceWriteHandler};
 }

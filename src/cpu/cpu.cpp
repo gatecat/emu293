@@ -56,12 +56,13 @@ void CPU::step() {
   if(pc == 0xa0e0fb20) {
 //		debugDump(false);
   }*/
-  if (pc == 0xa0e01b84) {
-    //		debugDump(true);
+  if (pc == 0Xa0c10e08) {
+    debugDump(true);
+    exit(1);
   }
-  if ((pc - lastpc) > 4) {
-    // printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
-  }
+  /* if ((pc - lastpc) > 4) {
+     printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
+ }*/
   lastpc = pc;
 
   if (queuedInterrupt != -1) {
