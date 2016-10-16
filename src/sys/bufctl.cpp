@@ -71,4 +71,30 @@ void BufCtl_PPUPaintDone() {
     bufctl_regs[bufctl_text3_ptr] = (bufctl_regs[bufctl_text3_ptr] + 1) % 2;
   }
 }
+
+void BUFCTLDeviceWriteHandler(uint16_t addr, uint32_t val) {
+  addr /= 4;
+  if (addr < bufctl_nreg) {
+    bufctl_regs[addr] = val;
+  } else {
+    printf("BUFCTL write error: address 0x%04x out of range, dat=0x%08x\n",
+           addr * 4, val);
+  }
+}
+
+uint32_t BUFCTLDeviceReadHandler(uint16_t addr) {
+  addr /= 4;
+  if (addr < bufctl_nreg) {
+    return bufctl_regs[addr];
+  } else {
+    printf("BUFCTL read error: address 0x%04x out of range\n", addr * 4);
+    return 0;
+  }
+}
+
+void InitBUFCTLDevice(PeripheralInitInfo initInfo) {}
+
+const Peripheral BUFCTLPeripheral = {"BUFCTL", InitBUFCTLDevice,
+                                     BUFCTLDeviceReadHandler,
+                                     BUFCTLDeviceWriteHandler};
 }

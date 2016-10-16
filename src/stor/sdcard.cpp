@@ -158,7 +158,7 @@ static void sendR1() {
 }
 
 static void beginRead(uint32_t addr) {
-  printf("SD begin read at 0x%08x\n", addr);
+  // printf("SD begin read at 0x%08x\n", addr);
   if (currentState == SD_STATE_TRANS) {
     if (addr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
@@ -175,7 +175,7 @@ static void beginRead(uint32_t addr) {
 }
 
 static void beginWrite(uint32_t addr) {
-  printf("SD begin write at 0x%08x\n", addr);
+  // printf("SD begin write at 0x%08x\n", addr);
   if (currentState == SD_STATE_TRANS) {
     if (addr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
@@ -190,7 +190,7 @@ static void beginWrite(uint32_t addr) {
 }
 
 void SD_Command(uint8_t command, uint32_t argument) {
-  printf("SD cmd %d arg=0x%08x\n", command, argument);
+  // printf("SD cmd %d arg=0x%08x\n", command, argument);
   if (currentState == SD_STATE_INACTIVE)
     return;
   using namespace CMD;

@@ -63,7 +63,7 @@ int APBDMA_Thread(void *data) {
       SDL_CondWait(condVars[chn], mutexes[chn]);
     }
     SDL_UnlockMutex(mutexes[chn]);
-    printf("APBDMA ch%d got signal!\n", chn);
+    // printf("APBDMA ch%d got signal!\n", chn);
     uint32_t cur_setting = dma_regs[dma_setting + chn];
     if (!check_bit(cur_setting, dma_set_en)) {
       workAvailable[chn] = false;
@@ -95,12 +95,12 @@ int APBDMA_Thread(void *data) {
       break;
     }
 
-    printf("ahb begin=0x%08x, ahb end=0x%08x, apb begin=0x%08x\n",
-           dma_regs[dma_ahb_start_a + chn], dma_regs[dma_ahb_end_a + chn],
-           dma_regs[dma_apb_start + chn]);
+    // printf("ahb begin=0x%08x, ahb end=0x%08x, apb begin=0x%08x\n",
+    //       dma_regs[dma_ahb_start_a + chn], dma_regs[dma_ahb_end_a + chn],
+    //       dma_regs[dma_apb_start + chn]);
 
     if (foundHook != -1) {
-      printf("using hook %d\n", foundHook);
+      // printf("using hook %d\n", foundHook);
       // use accelerated access
       if ((dma_regs[dma_ahb_start_a + chn] & 0xFE000000) != 0xA0000000) {
         printf("FIXME: AHB address not main RAM!!!\n");
@@ -140,7 +140,7 @@ int APBDMA_Thread(void *data) {
         }
       }
     } else {
-      printf("not using hook\n");
+      // printf("not using hook\n");
       uint32_t ahbAddr = dma_regs[dma_ahb_start_a + chn];
       uint32_t apbAddr = dma_regs[dma_apb_start + chn];
       uint32_t ahbEnd = dma_regs[dma_ahb_end_a + chn];
@@ -235,7 +235,7 @@ uint32_t APBDMADeviceReadHandler(uint16_t addr) {
 
 void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
   // addr %= 0x190; //not sure about this...
-  printf("APBDMA write : 0x%04x=0x%08x\n", addr, val);
+  // printf("APBDMA write : 0x%04x=0x%08x\n", addr, val);
   addr /= 4;
 
   if (addr == dma_irq_sts) {
