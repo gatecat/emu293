@@ -128,7 +128,7 @@ const int ppu_dma_miu_saddr = 0x96;
 const int ppu_dma_word_cnt = 0x97;
 /*SPRITE LAYER SUPPORT*/
 const int ppu_sprite_begin = 0x1000;
-
+const int ppu_sprite_data_begin_ptr = 0x34;
 const int ppu_sprite_lowword = 0;
 const int ppu_sprite_hiword = 1;
 
@@ -304,25 +304,27 @@ static inline void UnpackByteArray(uint8_t *in, uint8_t *out, int bpp,
 // Depalettize byte array (from UnpackByteArray) to custom format (see above)
 // Assumes RGB1555 - as I believe this is how palettes are always encoded.
 static inline void DepalettizeByteArray(uint8_t *in, uint32_t *out, int count,
-                                        int bank, int bpp) {
+                                        int bank, int bpp,
+                                        bool sprite = false) {
   int offset = 0;
   if (bpp == 2)
     offset = bank * 16; // datasheet says this, but dubious myself
   else
     offset = bank * (1 << bpp);
   for (int i = 0; i < count; i++) {
-    out[i] = Argb1555ToCustomFormat(
-        uint16_t(ppu_regs[ppu_palette_begin + offset + in[i]] & 0xFFFF));
+    out[i] = Argb1555ToCustomFormat(uint16_t(
+        ppu_regs[ppu_palette_begin + offset + in[i] + (sprite ? 0x200 : 0)] &
+        0xFFFF));
   }
 }
 
 static inline void RAMToCustomFormat(uint8_t *ram, uint32_t *out, int count,
                                      int pbank, bool argb1555, bool rgb565,
-                                     int bpp) {
+                                     int bpp, bool sprite = false) {
   if ((!argb1555) & (!rgb565)) { // palette encoded
     uint8_t *temp = new uint8_t[count];
     UnpackByteArray(ram, temp, bpp, count);
-    DepalettizeByteArray(temp, out, count, pbank, bpp);
+    DepalettizeByteArray(temp, out, count, pbank, bpp, sprite);
     delete[] temp;
   } else if (argb1555) {
     for (int i = 0; i < count; i++) {
@@ -366,19 +368,25 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
                            int layerNo) {
   bool hflip = check_bit(attr, ppu_tattr_hflip);
   bool vflip = check_bit(attr, ppu_tattr_vflip);
-  bool trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
+
+  bool trans;
+  if (layerNo == -1) {
+    trans = false;
+  } else {
+    trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
+  }
   int bank = get_bits(attr, 8, 5);
   int bpp = ppu_bpp_values[attr & 0x03];
   if (chno != 0) {
-    printf("chr 0x%08x\n", chno);
-    printf("dat = 0x%08x\n",
-           *reinterpret_cast<uint32_t *>(memptr + (chno & 0x01FFFFFF)));
+    // printf("chr 0x%08x\n", chno);
+    // printf("dat = 0x%08x\n",
+    //           *reinterpret_cast<uint32_t *>(memptr + (chno & 0x01FFFFFF)));
     // exit(1);
   }
   // convert char to a format we like
   uint32_t *chfmtd = new uint32_t[chwidth * chheight];
   RAMToCustomFormat(memptr + (chno & 0x01FFFFFF), chfmtd, chwidth * chheight,
-                    bank, false, false, bpp);
+                    bank, false, false, bpp, (layerNo == -1));
 
   for (int y = 0; y < chheight; y++) {
     int outy;
@@ -395,9 +403,17 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
         outx = posx + x;
       }
       if (trans) {
-        textLayers[layerNo][outy][outx] = 0x80000000;
+        if (layerNo != -1) {
+          textLayers[layerNo][outy][outx] = 0x80000000;
+        }
       } else {
-        textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
+        if (layerNo == -1) {
+          if ((outy >= 0) && (outy < 480) && (outx >= 0) && (outx < 640)) {
+            rendered[outy][outx] = (uint16_t)(chfmtd[y * chwidth + x] & 0xFFFF);
+          }
+        } else {
+          textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
+        }
       }
     }
   }
@@ -413,7 +429,7 @@ static void RenderTextLayer(int layerNo) {
   bool rgb565 = false, argb1555 = false;
   if (check_bit(ctrl, ppu_tctrl_rgb555)) {
     argb1555 = true;
-  } else if (check_bit(ctrl, ppu_tctrl_rgb555)) {
+  } else if (check_bit(ctrl, ppu_tctrl_rgb565)) {
     rgb565 = true;
   }
 
@@ -457,6 +473,27 @@ static void RenderTextLayer(int layerNo) {
     }
   }
 }
+
+static void RenderSprite(int idx, int currdepth) {
+  if (idx < ppu_regs[ppu_sprite_maxnum]) {
+    uint32_t num = ppu_regs[ppu_sprite_begin + 2 * idx];
+    uint32_t attr = ppu_regs[ppu_sprite_begin + 2 * idx + 1];
+    int chwidth = ppu_text_sizes[get_bits(attr, 2, 2)];
+    int chheight = ppu_text_sizes[get_bits(attr, 4, 2)];
+    uint16_t chnum = num & 0xFFFF;
+    uint16_t xpos = (num >> 16) & 0x3FF;
+    uint16_t ypos = (attr >> 16) & 0x3FF;
+    uint8_t *dataptr =
+        (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
+    if (xpos != 0) {
+      printf("sprite %d at (%d, %d), chr %d, begin 0x%08x\n", idx, xpos, ypos,
+             chnum, ppu_regs[ppu_sprite_data_begin_ptr]);
+    }
+
+    RenderTextChar(dataptr, attr & 0xFFFF, chnum, chwidth, chheight, xpos, ypos,
+                   -1);
+  }
+};
 
 void PPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
   addr /= 4;
@@ -519,20 +556,17 @@ static void PPURender() {
   for (int layer = 0; layer < 3; layer++) {
     RenderTextLayer(layer);
   }
-
   for (int depth = 0; depth < 4; depth++) {
     for (int layer = 0; layer < 3; layer++) {
       if (get_bits(ppu_regs[ppu_text_begin[layer] + ppu_text_attr], 13, 2) ==
           depth) {
-        printf("render layer %d\n", layer);
-        // MergeTextLayer(layer);
-        for (int y = 0; y < 480; y++) {
-          for (int x = 0; x < 640; x++) {
-            rendered[y][x] |= (textLayers[layer][y][x] & 0xFFFF);
-          }
-        }
+        // printf("render layer %d\n", layer);
+        MergeTextLayer(layer);
       }
     }
+  }
+  for (int i = 0; i < 512; i++) {
+    RenderSprite(i, 3);
   }
   SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(
       (void *)rendered, 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);

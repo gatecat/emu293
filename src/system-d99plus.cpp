@@ -38,7 +38,7 @@ uint8_t read_memU8(uint32_t addr) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     return ram[addr - RAM_START];
   } else {
-    printf("Read8 from unmapped memory location 0x%08x\n", addr);
+    // printf("Read8 from unmapped memory location 0x%08x\n", addr);
     return 0;
   }
 }
@@ -47,7 +47,7 @@ void write_memU8(uint32_t addr, uint8_t val) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     ram[addr - RAM_START] = val;
   } else {
-    printf("Write 0x%02x to unmapped memory location 0x%08x\n", val, addr);
+    // printf("Write 0x%02x to unmapped memory location 0x%08x\n", val, addr);
   }
 }
 uint16_t read_memU16(uint32_t addr) {
@@ -57,8 +57,8 @@ uint16_t read_memU16(uint32_t addr) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     return get_uint16le(&(ram[addr - RAM_START]));
   } else {
-    printf("Read16 from unmapped memory location 0x%08x at 0x%08x\n", addr,
-           currentCPU->pc);
+    // printf("Read16 from unmapped memory location 0x%08x at 0x%08x\n", addr,
+    //       currentCPU->pc);
     // currentCPU->debugDump();
     return 0;
   }
@@ -67,8 +67,9 @@ void write_memU16(uint32_t addr, uint16_t val) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     set_uint16le(&(ram[addr - RAM_START]), val);
   } else {
-    printf("Write 0x%04x to unmapped memory location 0x%08x at 0x%08x\n", val,
-           addr, currentCPU->pc);
+    // printf("Write 0x%04x to unmapped memory location 0x%08x at 0x%08x\n",
+    // val,
+    //       addr, currentCPU->pc);
   }
 }
 
@@ -81,13 +82,13 @@ uint32_t read_memU32(uint32_t addr) {
     if (peripherals[pAddr] != NULL) {
       return peripherals[pAddr]->regRead(addr & 0xFFFF);
     } else {
-      printf("Read32 from unmapped peripheral location 0x%08x at 0x%08x\n",
-             addr, currentCPU->pc);
+      // printf("Read32 from unmapped peripheral location 0x%08x at 0x%08x\n",
+      //         addr, currentCPU->pc);
       return 0;
     }
   } else {
-    printf("Read32 from unmapped memory location 0x%08x at 0x%08x\n", addr,
-           currentCPU->pc);
+    // printf("Read32 from unmapped memory location 0x%08x at 0x%08x\n", addr,
+    //       currentCPU->pc);
     return 0;
   }
 }
@@ -100,13 +101,15 @@ void write_memU32(uint32_t addr, uint32_t val) {
     if (peripherals[pAddr] != NULL) {
       peripherals[pAddr]->regWrite(addr & 0xFFFF, val);
     } else {
-      printf("Write 0x%08x to unmapped peripheral location 0x%08x at 0x%08x\n",
-             val, addr, currentCPU->pc);
+      // printf("Write 0x%08x to unmapped peripheral location 0x%08x at
+      // 0x%08x\n",
+      //         val, addr, currentCPU->pc);
     }
   } else {
-    printf("Write 0x%08x to unmapped memory location 0x%08x at 0x%08x\n", val,
-           addr, currentCPU->pc);
-    fflush(stdout);
+    // printf("Write 0x%08x to unmapped memory location 0x%08x at 0x%08x\n",
+    // val,
+    //           addr, currentCPU->pc);
+    //    fflush(stdout);
   }
 }
 

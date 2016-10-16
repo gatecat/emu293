@@ -69,7 +69,7 @@ void IRQDeviceWriteHandler(uint16_t addr, uint32_t val) {
   }
 }
 void SetIRQState(uint8_t IRQ, bool value) {
-  printf("IRQ %d = %d\n", IRQ, value);
+  // printf("IRQ %d = %d\n", IRQ, value);
   if (IRQ >= 64)
     return;
   if (IRQ >= 32) {

@@ -79,7 +79,7 @@ void CPU::step() {
 
     // Jump to interrupt
     pc = cr3 + 0x200 + (queuedInterrupt * 4);
-    printf("Jumping to IRQ handler at %08x\n", pc);
+    // printf("Jumping to IRQ handler at %08x\n", pc);
     queuedInterrupt = -1;
   }
   if ((pc & 0xFE000000) == 0xA0000000) {
