@@ -9,6 +9,8 @@
 #include "sys/timer.h"
 #include "system.h"
 #include "video/ppu.h"
+#include "video/tve.h"
+
 #include <cstdio>
 #include <cstdlib>
 using namespace std;
@@ -123,6 +125,7 @@ void system_init(CPU *cpu) {
   registerPeripheral(&APBDMAPeripheral, 0x08);
   registerPeripheral(&BLNDMAPeripheral, 0x0D);
   registerPeripheral(&PPUPeripheral, 0x01);
+  registerPeripheral(&TVEPeripheral, 0x03);
 
   registerPeripheral(&SDPeripheral, 0x18);
 }

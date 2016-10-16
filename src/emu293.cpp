@@ -5,6 +5,7 @@
 #include "stor/sdcard.h"
 #include "sys/timer.h"
 #include "video/ppu.h"
+#include "video/tve.h"
 
 #include "system.h"
 #include <SDL2/SDL.h>
@@ -47,8 +48,14 @@ int main(int argc, char *argv[]) {
       // SDL_Delay(1);
     }
 
-    if ((icount % 10000) == 5000) {
+    if ((icount % 40000) == 5000) {
       PPUTick();
+
+      // SDL_Delay(1);
+    }
+
+    if ((icount % 40000) == 7000) {
+      TVETick();
 
       // SDL_Delay(1);
     }

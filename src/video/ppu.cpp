@@ -490,6 +490,8 @@ void InitPPUDevice(PeripheralInitInfo initInfo) {
   memptr = get_dma_ptr(0xA0000000);
 }
 
+void PPURender() {}
+
 void PPUTick() {
   // simulate some kind of vblank to keep the app happy
   if (curr_line == 800) {
