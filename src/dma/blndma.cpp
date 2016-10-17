@@ -56,7 +56,9 @@ const int blndma_dbase_addr = 20;
 const int blndma_doffset_xy = 21;
 const int blndma_d_bg = 22;
 
-const int blndma_regcount = 23;
+const int blndma_descramble = 0x25;
+
+const int blndma_regcount = 0x26;
 
 const int blndma_interrupt = 34;
 
@@ -105,6 +107,8 @@ struct TransferInfo {
   ColourSpace colourSpace;
   bool enableAlphaChannel;
   uint16_t fillPtrn;
+
+  bool descramble;
 };
 
 static TransferInfo currentTransfer;
@@ -132,6 +136,38 @@ static void SetBlockInfo(AddrInfo &addr, int base) {
   addr.height = blndma_height_vals[(blndma_regs[base + 2] >> 8) & 0x7];
 }
 
+//"Circuits" of XOR gates for descrambling
+const uint32_t desc_circuits[32] = {
+    0x00010000, 0x08000200, 0x50020002, 0x02680008, 0x04000010, 0x12008000,
+    0x22018400, 0x21400104, 0x00800100, 0x08000002, 0x02800508, 0x20000800,
+    0x20013000, 0x00410184, 0x80013002, 0x08880100, 0x20210000, 0x88c00000,
+    0x28400040, 0x00800102, 0x11012800, 0x00204001, 0x02800c00, 0x60000000,
+    0x00810100, 0x00810800, 0x00c00184, 0x20080002, 0x50080000, 0x00810800,
+    0x00e00108, 0x08880100};
+
+static bool applyScramble(uint32_t din, uint32_t circuit) {
+  bool desc = 0;
+  while (circuit != 0) {
+    if ((circuit & 0x01) == 0x01) {
+      if ((din & 0x01) == 0x01) {
+        desc = !desc;
+      }
+    }
+    din >>= 1;
+    circuit >>= 1;
+  }
+  return desc;
+}
+
+static uint32_t descrambleWord(uint32_t din) {
+  uint32_t result = 0;
+  for (int i = 0; i < 32; i++) {
+    if (applyScramble(din, desc_circuits[i]))
+      set_bit(result, i);
+  }
+  return result;
+}
+
 int BLNDMA_Thread(void *data) {
   while (true) {
     SDL_LockMutex(blndma_mutex);
@@ -157,24 +193,40 @@ int BLNDMA_Thread(void *data) {
           }
           // TODO: YUV2RGB conversion, descrambling
           int addrA = GetAddress(srcA, x, y);
-          uint16_t val;
-          if (addrA == -1)
-            val = 0;
-          else
-            val = get_uint16le(memptr + GetAddress(srcA, x, y));
 
-          if ((currentTransfer.enableColourKey) &&
-              (val == currentTransfer.colourKey))
-            continue;
-          if (currentTransfer.colourSpace == TransferInfo::ARGB1555) {
-            // Might also need to convert 1555 to 565
-            if ((currentTransfer.enableAlphaChannel) && (check_bit(val, 15)))
-              continue;
-          }
           int addrD = GetAddress(dest, x, y);
           if (addrD == -1)
             continue;
-          set_uint16le(memptr + addrD, val);
+
+          if (currentTransfer.descramble) {
+            // descrambling is word rather than hword based, as far as I can see
+            uint32_t val;
+            if (addrA == -1)
+              val = 0;
+            else
+              val = get_uint32le(memptr + GetAddress(srcA, x, y));
+            uint32_t res = descrambleWord(val);
+            set_uint32le(memptr + addrD, res);
+            printf("descramble %08x to %08x\n", val, res);
+            x++;
+          } else {
+            uint16_t val;
+            if (addrA == -1)
+              val = 0;
+            else
+              val = get_uint16le(memptr + GetAddress(srcA, x, y));
+
+            if ((currentTransfer.enableColourKey) &&
+                (val == currentTransfer.colourKey))
+              continue;
+            if (currentTransfer.colourSpace == TransferInfo::ARGB1555) {
+              // Might also need to convert 1555 to 565
+              if ((currentTransfer.enableAlphaChannel) && (check_bit(val, 15)))
+                continue;
+            }
+
+            set_uint16le(memptr + addrD, val);
+          }
         }
       }
     } break;
@@ -345,6 +397,9 @@ void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         currentTransfer.colourKey = blndma_regs[blndma_transparent];
         currentTransfer.fillPtrn = blndma_regs[blndma_fill_pat];
 
+        currentTransfer.descramble =
+            check_bit(blndma_regs[blndma_descramble], 0);
+
         srcA.start = blndma_regs[blndma_srca_addr] & 0x0FFFFFFF;
         srcB.start = blndma_regs[blndma_srcb_addr] & 0x0FFFFFFF;
         dest.start = blndma_regs[blndma_dest_addr] & 0x0FFFFFFF;
@@ -358,7 +413,9 @@ void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
             check_bit(blndma_regs[blndma_addr_mode], blndma_addrmd_b);
         dest.blockmode =
             check_bit(blndma_regs[blndma_addr_mode], blndma_addrmd_d);
-
+        printf("BLNDMA go: src1=%08x, src2=%08x, dest=%08x\n", srcA.start,
+               srcB.start, dest.start);
+        printf("w=%d, h=%d\n", currentTransfer.width, currentTransfer.height);
         SetBlockInfo(srcA, blndma_abase_addr);
         SetBlockInfo(srcB, blndma_abase_addr);
         SetBlockInfo(dest, blndma_abase_addr);
@@ -366,6 +423,8 @@ void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         blndma_workAvailable = true;
         SDL_CondSignal(blndma_cvar);
         SDL_UnlockMutex(blndma_mutex);
+        while (blndma_workAvailable)
+          SDL_Delay(10);
       }
     }
   } else {

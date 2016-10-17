@@ -1,3 +1,4 @@
 *.o
 emu293
 *.exe
+tools/crack

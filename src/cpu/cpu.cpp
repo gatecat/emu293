@@ -56,13 +56,13 @@ void CPU::step() {
   if(pc == 0xa0e0fb20) {
 //		debugDump(false);
   }*/
-  if (pc == 0xa0c01960) {
-    debugDump(true);
-    exit(1);
-  }
-  if ((pc - lastpc) > 0x4) {
-    //    printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
-  }
+  /* if ((pc & 0xFE000000) != 0xA0000000) {
+     debugDump(true);
+     exit(1);
+ }*/
+  /* if ((pc - lastpc) > 0x4) {
+     printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
+ }*/
   lastpc = pc;
 
   if (queuedInterrupt != -1) {
@@ -1031,9 +1031,9 @@ void CPU::debugDump(bool noExit) {
     printf("\n");
   }
 
-  for (int i = 0; i < 0x100; i += 4) {
-    printf("mem[%08x] = %08x\n", 0xA06E0000 + i, read_memU32(0xA06E0000 + i));
-  }
+  /* for (int i = 0; i < 0x100; i += 4) {
+     printf("mem[%08x] = %08x\n", 0xA06E0000 + i, read_memU32(0xA06E0000 + i));
+ }*/
   if (!noExit)
     exit(1);
 }
