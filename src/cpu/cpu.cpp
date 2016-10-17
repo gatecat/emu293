@@ -60,6 +60,9 @@ void CPU::step() {
      debugDump(true);
      exit(1);
  }*/
+  if (pc == 0xa0ea54e0) {
+    debugDump(true);
+  }
   /* if ((pc - lastpc) > 0x4) {
      printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
  }*/
@@ -300,7 +303,7 @@ void CPU::exec32(const Instruction32 &insn) {
       break;
     // mtsr rA, Srn
     case 0x29:
-      sr[insn.spform.rB] = rD;
+      sr[insn.spform.rB] = rA;
       break;
     // t{cond}
     case 0x2A:
@@ -861,7 +864,7 @@ void CPU::exec16(const Instruction16 &insn) {
   }
 }
 
-bool CPU::conditional(uint8_t pattern) const {
+bool CPU::conditional(uint8_t pattern) {
   switch (pattern) {
   case 0x0:
     return C;
@@ -892,7 +895,14 @@ bool CPU::conditional(uint8_t pattern) const {
   case 0xD:
     return !V;
   case 0xE:
-    return false; // CNT > 0;
+    // return false; // CNT > 0;
+    if (int32_t(CNT) > 0) {
+      CNT--;
+      return true;
+    } else {
+      CNT--;
+      return false;
+    }
   case 0xF:
     return true;
   }
@@ -1014,6 +1024,11 @@ uint32_t CPU::sra(uint32_t a, uint8_t sa, bool flags) {
 }
 
 void CPU::debugDump(bool noExit) {
+  if ((pc % 4) == 0) {
+    printf("mem[PC] = 0x%08x\n", read_memU32(pc));
+  } else {
+    printf("mem[PC] = 0x%04x\n", read_memU16(pc));
+  }
   printf("PC = 0x%08X                N[%c] Z[%c] C[%c] V[%c] T[%c]\n", pc,
          N ? 'x' : ' ', Z ? 'x' : ' ', C ? 'x' : ' ', V ? 'x' : ' ',
          T ? 'x' : ' ');
@@ -1030,7 +1045,10 @@ void CPU::debugDump(bool noExit) {
 
     printf("\n");
   }
+  for (int ri = 0; ri < 3; ++ri)
+    printf("%ssr%d[%08X] ", (ri < 10) ? " " : "", ri, sr[ri]);
 
+  printf("\n");
   /* for (int i = 0; i < 0x100; i += 4) {
      printf("mem[%08x] = %08x\n", 0xA06E0000 + i, read_memU32(0xA06E0000 + i));
  }*/

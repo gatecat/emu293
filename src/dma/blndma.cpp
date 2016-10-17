@@ -122,9 +122,9 @@ static inline int GetAddress(const AddrInfo &addr, uint16_t x, uint16_t y) {
     if ((y + addr.offy) >= addr.height)
       return -1;
 
-    return addr.base + (addr.width * (y + addr.offy)) + (x + addr.offx);
+    return addr.base + 2 * ((addr.width * (y + addr.offy)) + (x + addr.offx));
   } else {
-    return addr.start + (currentTransfer.width * y) + x;
+    return addr.start + 2 * ((currentTransfer.width * y) + x);
   }
 }
 
@@ -207,7 +207,7 @@ int BLNDMA_Thread(void *data) {
               val = get_uint32le(memptr + GetAddress(srcA, x, y));
             uint32_t res = descrambleWord(val);
             set_uint32le(memptr + addrD, res);
-            printf("descramble %08x to %08x\n", val, res);
+            // printf("descramble %08x to %08x; wr to %08x\n", val, res, addrD);
             x++;
           } else {
             uint16_t val;
@@ -366,6 +366,7 @@ uint32_t BLNDMADeviceReadHandler(uint16_t addr) {
 }
 
 void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
+  printf("blndma write, 0x%04x <= 0x%08x\n", addr, val);
   addr /= 4;
   if (addr == blndma_irq_ctrl) {
     if (check_bit(val, blndma_irq_int_clr)) {
