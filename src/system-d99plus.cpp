@@ -100,9 +100,9 @@ void write_memU16(uint32_t addr, uint16_t val) {
 // NB peripheral read/writes are only 32 bit
 uint32_t read_memU32(uint32_t addr) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
-    if (!ram_active[addr - RAM_START])
-      printf("Read32 from uninit memory location 0x%08x at 0x%08x\n", addr,
-             currentCPU->pc);
+    // if (!ram_active[addr - RAM_START])
+    // printf("Read32 from uninit memory location 0x%08x at 0x%08x\n", addr,
+    //         currentCPU->pc);
     return get_uint32le(&(ram[addr - RAM_START]));
   } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
     printf("Read from imem 0x%08x at 0x%08x\n", addr, currentCPU->pc);

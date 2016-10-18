@@ -125,7 +125,7 @@ int APBDMA_Thread(void *data) {
       }
 
       uint32_t paddr =
-          dma_regs[dma_apb_start + chn] - hooks[foundHook].RegionSize;
+          dma_regs[dma_apb_start + chn] - hooks[foundHook].StartAddr;
       if (check_bit(cur_setting, dma_set_dir)) {
         if (check_bit(cur_setting, dma_set_addr_mode)) {
           hooks[foundHook].RegularReadHandler(paddr, len, ramBuf);

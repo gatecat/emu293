@@ -45,7 +45,7 @@ const uint8_t reg_scr[8] = {0x00, 0x00, 0xA5, 0x01, 0x00, 0x00, 0x00, 0x00};
 
 static FILE *imgfile = nullptr;
 static uint64_t cardsize;
-const uint32_t def_blocklen = 2048;
+const uint32_t def_blocklen = 1024;
 const uint16_t def_sizemult = 512;
 static uint32_t blocklen = 512;
 const uint32_t file_alignment = def_blocklen * def_sizemult;
@@ -158,7 +158,7 @@ static void sendR1() {
 }
 
 static void beginRead(uint32_t addr) {
-  // printf("SD begin read at 0x%08x\n", addr);
+  printf("SD begin read at 0x%08x\n", addr);
   if (currentState == SD_STATE_TRANS) {
     if (addr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
