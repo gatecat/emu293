@@ -190,7 +190,7 @@ static void beginWrite(uint32_t addr) {
 }
 
 void SD_Command(uint8_t command, uint32_t argument) {
-  // printf("SD cmd %d arg=0x%08x\n", command, argument);
+   printf("SD cmd %d arg=0x%08x\n", command, argument);
   if (currentState == SD_STATE_INACTIVE)
     return;
   using namespace CMD;
@@ -436,11 +436,11 @@ void SD_Read(uint8_t *buf, int len) {
       if (bytesread != len) {
         perror("SD Error: read failed. Details");
       }
-      /*	for(int i = 0; i < len; i++) {
+      	for(int i = 0; i < len; i++) {
                       printf("%02x ",buf[i]);
-                      if((i % 30) == 29) printf("\n");
+                      if((i % 32) == 31) printf("\n");
               }
-              printf("\n");*/
+              printf("\n");
       if ((!expectingMultiBlock) && (bytecount >= blocklen)) {
         currentState = SD_STATE_TRANS;
       }

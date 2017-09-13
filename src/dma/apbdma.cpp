@@ -19,7 +19,7 @@ static SDL_Thread *threads[dma_nCh] = {nullptr};
 static SDL_cond *condVars[dma_nCh] = {nullptr};
 static SDL_mutex *mutexes[dma_nCh] = {nullptr};
 static bool workAvailable[dma_nCh] = {false};
-const int dma_nregs = 32;
+const int dma_nregs = 34;
 static uint32_t dma_regs[dma_nregs];
 
 static vector<DMAHook> hooks;
@@ -38,6 +38,8 @@ const int dma_apb_start = 0x0A;
 const int dma_ahb_start_b = 0x13;
 const int dma_ahb_end_b = 0x17;
 const int dma_setting = 0x1B;
+const int dma_align = 0x21;
+
 // dma_setting bit fields
 const int dma_set_dir = 0;
 const int dma_set_dma_mode = 1;
@@ -235,7 +237,7 @@ uint32_t APBDMADeviceReadHandler(uint16_t addr) {
 
 void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
   // addr %= 0x190; //not sure about this...
-  // printf("APBDMA write : 0x%04x=0x%08x\n", addr, val);
+  printf("APBDMA write : 0x%04x=0x%08x\n", addr, val);
   addr /= 4;
 
   if (addr == dma_irq_sts) {
@@ -260,7 +262,7 @@ void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         if (check_bit(val, dma_set_mem)) {
           printf("FIXME: APBDMA double buffer mode not supported.\n");
         } else {
-          printf("APBDMA begin!\n");
+          printf("APBDMA begin (ahb = 0x%08x)!\n", dma_regs[dma_ahb_start_a + chn]);
           set_bit(dma_regs[dma_busy_sts], chn);
           SDL_LockMutex(mutexes[chn]);
           workAvailable[chn] = true;

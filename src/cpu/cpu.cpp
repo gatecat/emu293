@@ -50,23 +50,23 @@ void CPU::reset_registers() {
 
 void CPU::step() {
   static uint32_t lastpc;
-  /*if(pc == 0xa0e81a28) {
-//		debugDump(true);
+  if(pc == 0xa0e5d9c4) {
+		debugDump(true);
   }
-  if(pc == 0xa0e0fb20) {
-//		debugDump(false);
-  }*/
+ if(pc == 0xa0e0fb20) {
+		debugDump(true);
+  }
   /* if ((pc & 0xFE000000) != 0xA0000000) {
      debugDump(true);
      exit(1);
  }*/
   //  if (pc == 0xa0ea54e0) {
-  if (pc == 0xa0c01f50) {
+  /*if (pc == 0xa0c01f50) {
     debugDump();
-  }
+}*/
   if ((pc - lastpc) > 0x4) {
     printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
-  }
+}
   lastpc = pc;
 
   if (queuedInterrupt != -1) {
@@ -219,7 +219,7 @@ void CPU::exec32(const Instruction32 &insn) {
       break;
     // xor[.c] rD, rA, rB
     case 0x13:
-      rD = bit_or(rA, rB, insn.spform.CU);
+      rD = bit_xor(rA, rB, insn.spform.CU);
       break;
     // bitclr[.c] rD, rA, imm5
     case 0x14:
