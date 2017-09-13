@@ -840,7 +840,7 @@ void CPU::exec16(const Instruction16 &insn) {
 
     // lhp! rDg0, imm
     case 0x03:
-      rD = sign_extend(read_memU8(r2 + (imm << 1)), 16);
+      rD = sign_extend(read_memU16(r2 + (imm << 1)), 16);
       break;
     // swp! rDg0, imm
     case 0x04:
