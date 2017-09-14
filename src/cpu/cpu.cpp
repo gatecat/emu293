@@ -16,6 +16,27 @@ static int32_t sign_extend(uint32_t x, uint8_t b) {
 }
 namespace Emu293 {
 
+uint64_t mulu_op(uint32_t a, uint32_t b) {
+    return uint64_t(a) * uint64_t(b);
+}
+
+uint64_t muls_op(int32_t a, int32_t b) {
+    return uint64_t(int64_t(a) * int64_t(b));
+}
+
+uint64_t divu_op(uint32_t a, uint32_t b) {
+    uint32_t low = a / b;
+    uint32_t high = a % b;
+    return (uint64_t(high) << 32) | low;
+}
+
+uint64_t divs_op(int32_t a, int32_t b) {
+    uint32_t low = a / b;
+    uint32_t high = a % b;
+    return (uint64_t(high) << 32) | low;
+}
+
+
 CPU::CPU() {
   reset();
   memPtr = get_dma_ptr(0xA0000000);
@@ -50,11 +71,11 @@ void CPU::reset_registers() {
 
 void CPU::step() {
   static uint32_t lastpc;
-  if(pc == 0xa0e5d9c4) {
-		debugDump(true);
+  if (pc == 0xa0e5d9c4) {
+    debugDump(true);
   }
- if(pc == 0xa0e0fb20) {
-		debugDump(true);
+  if (pc == 0xa0e0fb20) {
+    debugDump(false);
   }
   /* if ((pc & 0xFE000000) != 0xA0000000) {
      debugDump(true);
@@ -66,25 +87,27 @@ void CPU::step() {
 }*/
   if ((pc - lastpc) > 0x4) {
     printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
-}
+  }
   lastpc = pc;
 
   if (queuedInterrupt != -1) {
     // Don't fire if interrupts are disabled
-    if (!(cr0 & 1))
-      return;
-    // set_bit(cr0, 0);
-    // Set cause in cr2
-    cr2 &= ~0x00FC0000;
-    cr2 |= (queuedInterrupt & 0x3F) << 18;
+    if (!(cr0 & 1)) {
 
-    // Save old PC
-    cr5 = pc;
+    } else {
+      // set_bit(cr0, 0);
+      // Set cause in cr2
+      cr2 &= ~0x00FC0000;
+      cr2 |= (queuedInterrupt & 0x3F) << 18;
 
-    // Jump to interrupt
-    pc = cr3 + 0x200 + (queuedInterrupt * 4);
-    // printf("Jumping to IRQ handler at %08x\n", pc);
-    queuedInterrupt = -1;
+      // Save old PC
+      cr5 = pc;
+
+      // Jump to interrupt
+      pc = cr3 + 0x200 + (queuedInterrupt * 4);
+      // printf("Jumping to IRQ handler at %08x\n", pc);
+      queuedInterrupt = -1;
+    }
   }
   if ((pc & 0xFE000000) == 0xA0000000) {
     uint32_t instruction = get_uint32le(memPtr + (pc & 0x01FFFFFF));
@@ -252,19 +275,19 @@ void CPU::exec32(const Instruction32 &insn) {
 
     // mul rA, rD
     case 0x20:
-      ce_op(rA, rD, std::multiplies<int64_t>());
+      ce_op(rA, rD, muls_op);
       break;
     // mulu rA, rD
     case 0x21:
-      ce_op(rA, rD, std::multiplies<uint64_t>());
+      ce_op(rA, rD, mulu_op);
       break;
     // div rA, rD
     case 0x22:
-      ce_op(rA, rD, std::divides<int64_t>());
+      ce_op(rA, rD, divs_op);
       break;
     // divu rA, rD
     case 0x23:
-      ce_op(rA, rD, std::divides<uint64_t>());
+      ce_op(rA, rD, divu_op);
       break;
 
     // mfce{hl} rD[, rA]
@@ -1056,4 +1079,4 @@ void CPU::debugDump(bool noExit) {
   if (!noExit)
     exit(1);
 }
-}
+} // namespace Emu293
