@@ -74,7 +74,7 @@ void CPU::step() {
   if (pc == 0xa0e5d9c4) {
     debugDump(true);
   }
-  if (pc == 0xa0e0fb20) {
+  if (pc == 0x001c001b) {
     debugDump(false);
   }
   /* if ((pc & 0xFE000000) != 0xA0000000) {
