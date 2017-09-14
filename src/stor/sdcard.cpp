@@ -132,8 +132,8 @@ bool SD_InitCard(const char *filename) {
   }
   uint32_t c_size = ((cardsize / (512 * 1024)) - 1) & 0x3FFFFF;
   //	c_size--;
-  reg_csd[2] |= ((c_size & 0xFFFF) << 16);
-  reg_csd[1] |= (c_size >> 16);
+  reg_csd[1] |= ((c_size & 0x3) << 30);
+  reg_csd[2] |= (c_size >> 2);
   SD_ResetCard();
   return true;
 }
