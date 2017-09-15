@@ -35,7 +35,9 @@ vector<ValuePair> data = {
     {0x6024dc06, 0x761c2668},
     {0xbfada485, 0x84cbffff},
     {0x335a005c, 0x80c79810},
-    {0x9cecd95c, 0x220e230e}};
+    {0x9cecd95c, 0x220e230e},
+    {0x15a60de6, 0x230a0f34},
+    {0xb0b6af88, 0x0023220a}};
 
 bool applyScramble(uint32_t din, uint32_t circuit) {
   bool desc = 0;
