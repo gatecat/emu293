@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cstdio>
 #include <functional>
+#include <iostream>
+
 using namespace std;
 // Based on https://github.com/LiraNuna/hyperscan-emulator
 
@@ -71,8 +73,8 @@ void CPU::reset_registers() {
 
 void CPU::step() {
   static uint32_t lastpc;
-  if (pc == 0xa0e5d9c4) {
-    debugDump(true);
+  if (pc == 0xa0c01f54) {
+    debugDump(false);
   }
   if (pc == 0x001c001b) {
     debugDump(false);
@@ -1076,7 +1078,31 @@ void CPU::debugDump(bool noExit) {
   /* for (int i = 0; i < 0x100; i += 4) {
      printf("mem[%08x] = %08x\n", 0xA06E0000 + i, read_memU32(0xA06E0000 + i));
  }*/
-  if (!noExit)
-    exit(1);
+  if (!noExit) {
+      //Simple shell
+      while(true) {
+          cout << "> ";
+          string addr;
+          cin >> addr;
+          if(addr.size() > 0) {
+              if(addr[0] == 'q') {
+                  break;
+              } else if(addr[0] == 's') {
+                  uint32_t uaddr = stol(addr.substr(1), nullptr, 0);
+                  char c;
+                  while((c = read_memU8(uaddr++)) != 0)
+                    cout << c;
+                  cout << endl;
+              } else {
+                  uint32_t uaddr = stol(addr, nullptr, 0);
+                  printf("mem[%08x] = %08x\n", uaddr, read_memU32(uaddr));
+              }
+
+
+          }
+      }
+      exit(1);
+
+  }
 }
 } // namespace Emu293

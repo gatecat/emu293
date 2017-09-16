@@ -498,6 +498,7 @@ static void RenderSprite(int idx, int currdepth) {
 void PPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
   addr /= 4;
   ppu_regs[addr] = val;
+  printf("ppu write to %04x dat=%08x\n", addr, val);
   if (addr == ppu_dma_ctrl) {
     if (check_bit(val, ppu_dma_ctrl_en)) {
       SDL_LockMutex(ppudma_mutex);
