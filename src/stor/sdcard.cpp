@@ -6,6 +6,11 @@
 #include <cstdlib>
 #include <utility>
 #include <vector>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 using namespace std;
 
 namespace Emu293 {
@@ -43,7 +48,7 @@ static uint32_t reg_csd[4] = {0x0008015A, 0x5B5BE000, 0x0000C000,
                               0x02E000FF}; // most significant word first
 const uint8_t reg_scr[8] = {0x00, 0x00, 0xA5, 0x01, 0x00, 0x00, 0x00, 0x00};
 
-static FILE *imgfile = nullptr;
+static int imgfd;
 static uint64_t cardsize;
 const uint32_t def_blocklen = 1024;
 const uint16_t def_sizemult = 512;
@@ -103,14 +108,17 @@ static void updateCardStatus() {
   currentCardStatus |= ((currentState & 0x0F) << 9);
 }
 
+volatile uint64_t offset = 0;
+
 bool SD_InitCard(const char *filename) {
-  imgfile = fopen64(filename, "r+b");
-  if (imgfile == NULL) {
+  imgfd = open64(filename, O_RDWR);
+  if (imgfd < 0) {
     printf("Failed to open SD image file %s.\n", filename);
     return false;
   }
-  fseeko64(imgfile, 0, SEEK_END);
-  cardsize = (uint64_t)ftello64(imgfile);
+  struct stat st;
+  fstat(imgfd, &st);
+  cardsize = (uint64_t)st.st_size;
   if (cardsize > max_size) {
     printf("SD image file %s exceeds maximum size of %dMB.\n", filename,
            int(max_size / 1024 * 1024));
@@ -124,7 +132,7 @@ bool SD_InitCard(const char *filename) {
     // append suitable number of bytes to end of file
     int padding = file_alignment - (cardsize % file_alignment);
     vector<uint8_t> buf(padding, 0xFF);
-    if (fwrite(&(*buf.begin()), 1, padding, imgfile) != padding) {
+    if (write(imgfd, &(*buf.begin()), padding) != padding) {
       printf("Failed to pad SD image file - check file can be written to.\n");
       return false;
     }
@@ -148,6 +156,7 @@ void SD_ResetCard() {
   eraseBegin = 0;
   eraseEnd = 0;
   readingScr = false;
+  offset = 0;
 }
 
 static void sendR1() {
@@ -164,7 +173,7 @@ static void beginRead(uint32_t addr) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
       printf("Address %d out of range\n", addr);
     } else {
-      fseeko64(imgfile, addr, SEEK_SET);
+      offset = addr;
       currentState = SD_STATE_SEND;
       bytecount = 0;
     }
@@ -180,7 +189,7 @@ static void beginWrite(uint32_t addr) {
     if (addr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
     } else {
-      fseeko64(imgfile, addr, SEEK_SET);
+      offset = addr;
       currentState = SD_STATE_RECV;
       bytecount = 0;
     }
@@ -355,21 +364,20 @@ void SD_Command(uint8_t command, uint32_t argument) {
       beginWrite(argument);
       break;
     case ERASE_WR_BLK_START:
-      eraseBegin = argument;
+      eraseBegin = argument * blocklen;
       break;
     case ERASE_WR_BLK_END:
-      eraseEnd = argument;
+      eraseEnd = argument * blocklen;
       break;
     case ERASE:
       if (currentState == SD_STATE_TRANS) {
-        fseeko64(imgfile, eraseBegin, SEEK_SET);
         vector<uint8_t> buf(blocklen, 0xFF);
         for (uint32_t i = eraseBegin; i <= eraseEnd; i += blocklen) {
           if ((i + blocklen) > cardsize) {
             set_bit(currentCardStatus, cardStatus_outOfRange);
             break;
           } else {
-            fwrite(&(*buf.begin()), 1, blocklen, imgfile);
+            pwrite(imgfd, (void *)(&(buf[0])), blocklen, i);
           }
         }
       } else {
@@ -405,8 +413,10 @@ void SD_Write(volatile uint8_t *buf, int len) {
   if (currentState == SD_STATE_RECV) {
     uint8_t *tempbuf = new uint8_t[len];
     copy(buf, buf + len, tempbuf);
-    bytecount += fwrite(tempbuf, 1, len, imgfile);
+    int bytes = pwrite(imgfd, (void *)tempbuf, len, offset);
     delete[] tempbuf;
+    bytecount += bytes;
+    offset += bytes;
     /*if(bytecount != len) {
             printf("SD Error: write failed\n");
     }*/
@@ -433,21 +443,21 @@ void SD_Read(volatile uint8_t *buf, int len) {
   } else {
     if (currentState == SD_STATE_SEND) {
       uint8_t *tempbuf = new uint8_t[len];
-      int bytesread = fread(tempbuf, 1, len, imgfile);
+      int bytesread = pread(imgfd, tempbuf, len, offset);
       copy(tempbuf, tempbuf + len, buf);
       delete[] tempbuf;
       // int errorcode = errno;
-
+      offset += bytesread;
       bytecount += bytesread;
       if (bytesread != len) {
         perror("SD Error: read failed. Details");
       }
-      for (int i = 0; i < len; i++) {
+      /*for (int i = 0; i < len; i++) {
         printf("%02x ", buf[i]);
         if ((i % 32) == 31)
           printf("\n");
       }
-      printf("\n");
+      printf("\n");*/
       if ((!expectingMultiBlock) && (bytecount >= blocklen)) {
         currentState = SD_STATE_TRANS;
       }
