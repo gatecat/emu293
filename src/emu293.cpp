@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
   InitAPBDMAThreads();
   InitBLNDMAThread();
   InitPPUThreads();
-  SD_InitCard("/mnt/data/spg293/a22/sd3.img");
+  SD_InitCard("/mnt/data/spg293/a22/sd.img");
 
   CPU scoreCPU;
 

@@ -20,7 +20,7 @@ static SDL_cond *condVars[dma_nCh] = {nullptr};
 static SDL_mutex *mutexes[dma_nCh] = {nullptr};
 static bool workAvailable[dma_nCh] = {false};
 const int dma_nregs = 34;
-static uint32_t dma_regs[dma_nregs];
+static volatile uint32_t dma_regs[dma_nregs];
 
 static vector<DMAHook> hooks;
 
