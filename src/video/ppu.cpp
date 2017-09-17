@@ -140,7 +140,7 @@ const int ppu_spriteh_blnden = 15;
 // Palette storage
 const int ppu_palette_begin = 0x400;
 
-static uint8_t *memptr = nullptr;
+static volatile uint8_t *memptr = nullptr;
 
 static SDL_Thread *ppudma_thread;
 static SDL_mutex *ppudma_mutex;
@@ -167,7 +167,7 @@ int PPUDMA_Thread(void *data) {
       continue;
     }
 
-    uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x01FFFFFF);
+    volatile uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x01FFFFFF);
     uint32_t *ppuptr = ppu_regs + ((ppu_regs[ppu_dma_ppu_saddr] & 0xFFFF) / 4);
     //+1 based on driver, needs checking
     for (int i = 0; i < (ppu_regs[ppu_dma_word_cnt] + 1); i++) {
@@ -266,7 +266,7 @@ static void MergeTextLayer(int layerNo) {
 
 // Convert a 1, 2, 4 or 6 bpp array to an 8bpp array
 
-static inline void UnpackByteArray(uint8_t *in, uint8_t *out, int bpp,
+static inline void UnpackByteArray(volatile uint8_t *in, uint8_t *out, int bpp,
                                    int count) {
   int inIndex = 0;
   int inBitIndex = 0;
@@ -318,7 +318,7 @@ static inline void DepalettizeByteArray(uint8_t *in, uint32_t *out, int count,
   }
 }
 
-static inline void RAMToCustomFormat(uint8_t *ram, uint32_t *out, int count,
+static inline void RAMToCustomFormat(volatile uint8_t *ram, uint32_t *out, int count,
                                      int pbank, bool argb1555, bool rgb565,
                                      int bpp, bool sprite = false) {
   if ((!argb1555) & (!rgb565)) { // palette encoded
@@ -345,14 +345,14 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
-  uint8_t *ramBuf =
+  volatile uint8_t *ramBuf =
       memptr +
       (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
   // always use attribute array in bitmap mode???
   uint16_t attr = ramBuf[lheight * 4 + line * 2] |
                   (uint16_t(ramBuf[lheight * 4 + line * 2 + 1]) << 8);
   uint32_t lineBegin = get_uint32le(&(ramBuf[line * 4]));
-  uint8_t *linebuf = memptr + (lineBegin & 0x01FFFFFF);
+  volatile uint8_t *linebuf = memptr + (lineBegin & 0x01FFFFFF);
   int bpp;
   if (rgb565 | argb1555) {
     bpp = 16;
@@ -363,7 +363,7 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
 }
 
-static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
+static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno,
                            int chwidth, int chheight, int posx, int posy,
                            int layerNo) {
   bool hflip = check_bit(attr, ppu_tattr_hflip);
@@ -451,10 +451,10 @@ static void RenderTextLayer(int layerNo) {
     bool reg_mode = check_bit(ctrl, ppu_tctrl_regmode);
     int gridwidth = lwidth / chwidth;
     int gridheight = lheight / chheight;
-    uint8_t *numbuf =
+    volatile uint8_t *numbuf =
         memptr +
         (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
-    uint8_t *datbuf =
+    volatile uint8_t *datbuf =
         memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
     for (int y = 0; y < gridheight; y++) {
       for (int x = 0; x < gridwidth; x++) {
@@ -483,7 +483,7 @@ static void RenderSprite(int idx, int currdepth) {
     uint16_t chnum = num & 0xFFFF;
     uint16_t xpos = (num >> 16) & 0x3FF;
     uint16_t ypos = (attr >> 16) & 0x3FF;
-    uint8_t *dataptr =
+    volatile uint8_t *dataptr =
         (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
     if (xpos != 0) {
       printf("sprite %d at (%d, %d), chr %d, begin 0x%08x\n", idx, xpos, ypos,

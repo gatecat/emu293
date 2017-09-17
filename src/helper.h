@@ -29,30 +29,30 @@ using namespace std;
 //General helper functions
 namespace Emu293 {
 	//convert bytes from array to/from uint32/uint16, little endian
-	inline uint32_t get_uint32le(const uint8_t *arr) {
+	inline uint32_t get_uint32le(const volatile uint8_t *arr) {
 	#ifdef LITTLE_ENDIAN
-		return *reinterpret_cast<const uint32_t*>(arr);
+		return *reinterpret_cast<const volatile uint32_t*>(arr);
 	#else
 		return 0;
 	#endif
 	}
-	inline uint16_t get_uint16le(const uint8_t *arr) {
+	inline uint16_t get_uint16le(const volatile uint8_t *arr) {
 	#ifdef LITTLE_ENDIAN
-		return *reinterpret_cast<const uint16_t*>(arr);
+		return *reinterpret_cast<const volatile uint16_t*>(arr);
 	#else
 		return 0;
 	#endif
 	}
-	inline void set_uint32le(uint8_t *arr, uint32_t val) {
+	inline void set_uint32le(volatile uint8_t *arr, uint32_t val) {
 	#ifdef LITTLE_ENDIAN
-		*reinterpret_cast<uint32_t*>(arr)=val;
+		*reinterpret_cast<volatile uint32_t*>(arr)=val;
 	#else
 
 	#endif
 	}
-	inline void set_uint16le(uint8_t *arr, uint16_t val) {
+	inline void set_uint16le(volatile uint8_t *arr, uint16_t val) {
 	#ifdef LITTLE_ENDIAN
-		*reinterpret_cast<uint16_t*>(arr)=val;
+		*reinterpret_cast<volatile uint16_t*>(arr)=val;
 	#else
 
 	#endif

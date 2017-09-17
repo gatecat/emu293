@@ -15,5 +15,5 @@ namespace Emu293 {
 	void write_memU32(uint32_t addr, uint32_t val);
 
 	//Get a pointer for fast RAM access - returns nullptr if start address invalid
-	uint8_t *get_dma_ptr(uint32_t addr);
+	volatile uint8_t *get_dma_ptr(uint32_t addr);
 }

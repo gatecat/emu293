@@ -210,7 +210,7 @@ protected:
 
   uint32_t sra(uint32_t a, uint8_t sa, bool flags);
 
-  uint8_t *memPtr;
+  volatile uint8_t *memPtr;
 
   bool isPCE;
 

@@ -10,7 +10,7 @@ namespace Emu293 {
 
 	//DMA hooks enable fast peripheral read/writes
 	//Buf is a byte buffer. startAddr is start address relative to peripheral hook start
-	typedef void (*DMAHandler)(uint32_t startAddr, uint32_t count, uint8_t *buf);
+	typedef void (*DMAHandler)(uint32_t startAddr, uint32_t count, volatile uint8_t *buf);
 
 	enum DMAHookFlags {
 		DMA_DIR_WRITE 	= 1, //allows reads

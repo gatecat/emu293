@@ -73,7 +73,7 @@ static bool blndma_workAvailable = false;
 
 static uint32_t blndma_regs[blndma_regcount] = {0};
 
-static uint8_t *memptr;
+static volatile uint8_t *memptr;
 
 struct AddrInfo {
   bool blockmode;

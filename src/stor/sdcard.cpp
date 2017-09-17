@@ -32,7 +32,7 @@ const uint8_t APP_CMD = 55;
 const uint8_t SD_SEND_OP_COND = 41;
 const uint8_t SD_SEND_SCR = 51;
 const uint8_t SD_SET_WIDTH = 6;
-}
+} // namespace CMD
 // TODO: correct CRCs
 const uint32_t reg_ocr = 0x80FF8000;
 const uint32_t reg_cid[4] = {0x42445345, 0x6D753239, 0x10000000,
@@ -190,7 +190,7 @@ static void beginWrite(uint32_t addr) {
 }
 
 void SD_Command(uint8_t command, uint32_t argument) {
-   printf("SD cmd %d arg=0x%08x\n", command, argument);
+  printf("SD cmd %d arg=0x%08x\n", command, argument);
   if (currentState == SD_STATE_INACTIVE)
     return;
   using namespace CMD;
@@ -400,10 +400,13 @@ uint32_t SD_Command_ReadResponse() {
   }
 }
 
-void SD_Write(uint8_t *buf, int len) {
+void SD_Write(volatile uint8_t *buf, int len) {
   printf("SD: writing %d bytes.\n", len);
   if (currentState == SD_STATE_RECV) {
-    bytecount += fwrite(buf, 1, len, imgfile);
+    uint8_t *tempbuf = new uint8_t[len];
+    copy(buf, buf + len, tempbuf);
+    bytecount += fwrite(tempbuf, 1, len, imgfile);
+    delete[] tempbuf;
     /*if(bytecount != len) {
             printf("SD Error: write failed\n");
     }*/
@@ -415,7 +418,7 @@ void SD_Write(uint8_t *buf, int len) {
   }
 }
 
-void SD_Read(uint8_t *buf, int len) {
+void SD_Read(volatile uint8_t *buf, int len) {
   printf("SD: reading %d bytes.\n", len);
 
   if (readingScr) {
@@ -429,18 +432,22 @@ void SD_Read(uint8_t *buf, int len) {
     }
   } else {
     if (currentState == SD_STATE_SEND) {
-      int bytesread = fread(buf, 1, len, imgfile);
+      uint8_t *tempbuf = new uint8_t[len];
+      int bytesread = fread(tempbuf, 1, len, imgfile);
+      copy(tempbuf, tempbuf + len, buf);
+      delete[] tempbuf;
       // int errorcode = errno;
 
       bytecount += bytesread;
       if (bytesread != len) {
         perror("SD Error: read failed. Details");
       }
-      	for(int i = 0; i < len; i++) {
-                      printf("%02x ",buf[i]);
-                      if((i % 32) == 31) printf("\n");
-              }
-              printf("\n");
+      for (int i = 0; i < len; i++) {
+        printf("%02x ", buf[i]);
+        if ((i % 32) == 31)
+          printf("\n");
+      }
+      printf("\n");
       if ((!expectingMultiBlock) && (bytecount >= blocklen)) {
         currentState = SD_STATE_TRANS;
       }
@@ -450,4 +457,4 @@ void SD_Read(uint8_t *buf, int len) {
     }
   }
 }
-}
+} // namespace Emu293
