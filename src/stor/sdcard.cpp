@@ -44,13 +44,13 @@ const uint32_t reg_cid[4] = {0x42445345, 0x6D753239, 0x10000000,
                              0x0000F7FF}; // most significant word first
 // this is populated with size at runtime, but we can prepopulate some stuff
 // beforehand
-static uint32_t reg_csd[4] = {0x0008015A, 0x5B5BE000, 0x0000C000,
-                              0x02E000FF}; // most significant word first
+static uint32_t reg_csd[4] = {0x0008015A, 0x5B9BE000, 0x0000E000,
+                              0x026000FF}; // most significant word first
 const uint8_t reg_scr[8] = {0x00, 0x00, 0xA5, 0x01, 0x00, 0x00, 0x00, 0x00};
 
 static int imgfd;
 static uint64_t cardsize;
-const uint32_t def_blocklen = 1024;
+const uint32_t def_blocklen = 512;
 const uint16_t def_sizemult = 512;
 static uint32_t blocklen = 512;
 const uint32_t file_alignment = def_blocklen * def_sizemult;
@@ -138,7 +138,7 @@ bool SD_InitCard(const char *filename) {
     }
     cardsize += padding;
   }
-  uint32_t c_size = ((cardsize / (512 * 1024)) - 1) & 0x3FFFFF;
+  uint32_t c_size = ((cardsize / (512 * 512)) - 1) & 0x3FFFFF;
   //	c_size--;
   reg_csd[1] |= ((c_size & 0x3) << 30);
   reg_csd[2] |= (c_size >> 2);
@@ -341,6 +341,7 @@ void SD_Command(uint8_t command, uint32_t argument) {
     } break;
     case SET_BLOCKLEN: {
       if (currentState == SD_STATE_TRANS) {
+        printf("set blocklen to %d\n", blocklen);
         blocklen = argument;
       } else {
         set_bit(currentCardStatus, cardStatus_iglCommand);
@@ -348,10 +349,12 @@ void SD_Command(uint8_t command, uint32_t argument) {
       sendR1();
     } break;
     case READ_SINGLE_BLOCK:
+        printf("read single!!\n");
       expectingMultiBlock = false;
       beginRead(argument);
       break;
     case READ_MULTIPLE_BLOCK:
+        printf("read multi!!\n");
       expectingMultiBlock = true;
       beginRead(argument);
       break;

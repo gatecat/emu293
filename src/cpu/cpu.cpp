@@ -88,7 +88,7 @@ void CPU::step() {
     debugDump();
 }*/
   if ((pc - lastpc) > 0x4) {
-    printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
+    //printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
   }
   lastpc = pc;
 
