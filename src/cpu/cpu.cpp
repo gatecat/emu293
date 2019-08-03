@@ -42,6 +42,7 @@ uint64_t divs_op(int32_t a, int32_t b) {
 CPU::CPU() {
   reset();
   memPtr = get_dma_ptr(0xA0000000);
+  imemPtr = get_dma_ptr(0x9F000000);
 }
 
 void CPU::reset() {
@@ -111,10 +112,12 @@ void CPU::step() {
       queuedInterrupt = -1;
     }
   }
-  if ((pc & 0xFE000000) == 0xA0000000) {
-    uint32_t instruction = get_uint32le(memPtr + (pc & 0x01FFFFFF));
+  if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000 ||  (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) {
+    auto ptr = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? imemPtr : memPtr;
+    uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFF : 0x01FFFFFF;
+    uint32_t instruction = get_uint32le(ptr + (pc & mask));
     // uint32_t instruction = read_memU16(pc);
-    // printf("PC=0x%08x\n",pc);
+    //printf("PC=0x%08x instr = %08x, ptr=%16x %16x\n",pc, instruction, uint64_t(ptr), imemPtr);
     // Pre-decode the instruction
     if (((instruction & 0x80008000) == 0x80008000) && ((pc & 0x03) == 0)) {
       // Remove p0 and p1 bits before handling the instruction as 30bit
@@ -411,12 +414,12 @@ void CPU::exec32(const Instruction32 &insn) {
     // j[l] imm24
     if (insn.jform.LK)
       link();
-    // uint32_t oldpc = pc;
+    uint32_t oldpc = pc;
     // Update PC
     pc &= 0xFC000000;
     pc |= (insn.jform.Disp24 << 1);
     pc -= 4;
-    // printf("J 0x%08x from 0x%08x\n", pc+4, oldpc);
+    printf("J 0x%08x from 0x%08x\n", pc+4, oldpc);
   } break;
   case 0x03: {
     uint32_t &rD = r[insn.rixform.rD];
@@ -1080,7 +1083,7 @@ void CPU::debugDump(bool noExit) {
  }*/
   if (!noExit) {
       //Simple shell
-      while(true) {
+      while(cin) {
           cout << "> ";
           string addr;
           cin >> addr;

@@ -30,7 +30,7 @@ namespace Emu293 {
 
 volatile uint8_t ram[RAM_SIZE];
 bool ram_active[RAM_SIZE];
-uint8_t imem[IMEM_SIZE];
+volatile uint8_t imem[IMEM_SIZE];
 
 const Peripheral *peripherals[256] = {NULL};
 
@@ -63,6 +63,8 @@ void write_memU8(uint32_t addr, uint8_t val) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     ram[addr - RAM_START] = val;
     ram_active[addr - RAM_START] = true;
+  } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
+    imem[addr - IMEM_START] = val;
   } else {
     // printf("Write 0x%02x to unmapped memory location 0x%08x\n", val, addr);
   }
@@ -174,6 +176,10 @@ void write_memU32(uint32_t addr, uint32_t val) {
 volatile uint8_t *get_dma_ptr(uint32_t addr) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE)))
     return &(ram[addr - RAM_START]);
+  else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE)))
+    return &(imem[addr - IMEM_START]);
+  else if ((addr >= IMEM_START_ALT) && (addr < (IMEM_START_ALT + IMEM_SIZE)))
+    return &(imem[addr - IMEM_START_ALT]);
   else
     return nullptr;
 }
@@ -193,9 +199,9 @@ void system_init(CPU *cpu) {
   registerPeripheral(&MIUPeripheral, 0x07);
 
   registerPeripheral(&SDPeripheral, 0x18);
-  write_memU32(0x9F000040, 0x00434150);
-  write_memU32(0x9F000044, 0x41303034);
+//  write_memU32(0x9F000040, 0x00434150);
+//  write_memU32(0x9F000044, 0x41303034);
   // stubs for internal functions: just br r3 to return
-  write_memU32(0xBF000024, 0x8003bc08);
+//  write_memU32(0xBF000024, 0x8003bc08);
 }
 }
