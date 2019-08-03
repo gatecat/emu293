@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <functional>
 #include <vector>
+#include <atomic>
 using namespace std;
 
 namespace Emu293 {
@@ -18,9 +19,9 @@ const int dma_nCh = 4;
 static SDL_Thread *threads[dma_nCh] = {nullptr};
 static SDL_cond *condVars[dma_nCh] = {nullptr};
 static SDL_mutex *mutexes[dma_nCh] = {nullptr};
-static bool workAvailable[dma_nCh] = {false};
+static atomic<bool> workAvailable[dma_nCh] = {false};
 const int dma_nregs = 34;
-static volatile uint32_t dma_regs[dma_nregs];
+static atomic<uint32_t> dma_regs[dma_nregs];
 
 static vector<DMAHook> hooks;
 
@@ -112,7 +113,9 @@ int APBDMA_Thread(void *data) {
       volatile uint8_t *ramBuf = memptr + (dma_regs[dma_ahb_start_a + chn] & 0x01FFFFFF);
       uint32_t len =
           dma_regs[dma_ahb_end_a + chn] - dma_regs[dma_ahb_start_a + chn];
-
+      if (len < 0) {
+        throw runtime_error("bad dma length");
+      }
       switch (get_bits(cur_setting, dma_set_trans, dma_set_trans_len)) {
       case dma_trans_8sgl:
         len += 1;
@@ -228,6 +231,7 @@ void InitAPBDMADevice(PeripheralInitInfo initInfo) {
 
 uint32_t APBDMADeviceReadHandler(uint16_t addr) {
   if ((addr / 4) < dma_nregs) {
+    printf("APBDMA read %04x = %08x\n", addr, uint32_t(dma_regs[addr / 4]));
     return dma_regs[addr / 4];
   } else {
     printf("APBDMA read error: address 0x%04x out of range\n", addr);
@@ -262,7 +266,7 @@ void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         if (check_bit(val, dma_set_mem)) {
           printf("FIXME: APBDMA double buffer mode not supported.\n");
         } else {
-          printf("APBDMA begin (ahb = 0x%08x)!\n", dma_regs[dma_ahb_start_a + chn]);
+          printf("APBDMA begin (ahb = 0x%08x)!\n", uint32_t(dma_regs[dma_ahb_start_a + chn]));
           set_bit(dma_regs[dma_busy_sts], chn);
           SDL_LockMutex(mutexes[chn]);
           workAvailable[chn] = true;
