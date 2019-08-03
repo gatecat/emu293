@@ -2,6 +2,7 @@
 #include "../helper.h"
 #include "../sys/irq_if.h"
 #include "../system.h"
+#include "../loadelf.h"
 #include <algorithm>
 #include <cstdio>
 #include <functional>
@@ -104,8 +105,8 @@ void CPU::step() {
   /*if (pc == 0xa0c01f50) {
     debugDump();
 }*/
-  if ((pc - lastpc) > 0x4) {
-   // printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
+  if (((pc - lastpc) > 0x4) && symbols_bwd.count(pc)) {
+    printf("%08x => %08x <%s>, r4=%08x \n", lastpc, pc, symbols_bwd[pc].c_str(), r4);
   }
   lastpc = pc;
 
