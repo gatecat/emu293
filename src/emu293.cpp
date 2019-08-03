@@ -14,9 +14,9 @@
 using namespace Emu293;
 int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
-#if 0
+#if 1
   uint32_t entryPoint;
-  entryPoint = LoadElfToRAM("/mnt/data/spg293/a23/rom.elf");
+  entryPoint = LoadElfToRAM("/mnt/data/spg293/a21/rom.elf");
   if (entryPoint == 0) {
     printf("Failed to load ELF\n");
     return 1;
@@ -43,10 +43,7 @@ int main(int argc, char *argv[]) {
   }
   fclose(romFile); 
 
-  entryPoint = 0x9F000E30;
-  InitAPBDMAThreads();
-  InitBLNDMAThread();
-  InitPPUThreads();
+  entryPoint = 0x9F000000;
   SD_InitCard("/mnt/data/spg293/zone3d.img");
 #endif
   CPU scoreCPU;

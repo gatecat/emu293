@@ -74,7 +74,23 @@ void CPU::reset_registers() {
 
 void CPU::step() {
   static uint32_t lastpc;
-  if (pc == 0xa0c01f54) {
+
+  auto trace_file = [&](const char *func, int reg) {
+    uint32_t addr = r[reg];
+    std::string debug_s;
+    printf("%s %08x\n", func, addr);
+    if ((addr & 0xFE000000) == 0xA0000000) {
+      char debug_c;
+      while ((debug_c = read_memU8(addr++)) != 0 && debug_s.size() < 128)
+        debug_s += debug_c;
+      printf("   %s(\"%s\");\n", func, debug_s.c_str());
+    }
+  };
+
+  if (pc == 0xa0ca7a44) trace_file("ufat_fstat", 4);
+  if (pc == 0xa0ca94c0) trace_file("ufat_chdir", 4);
+
+  if (pc == 0xa0c01efc) {
     debugDump(false);
   }
   if (pc == 0x001c001b) {
@@ -89,7 +105,7 @@ void CPU::step() {
     debugDump();
 }*/
   if ((pc - lastpc) > 0x4) {
-    //printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
+    printf("%08x => %08x, r4=%08x \n", lastpc, pc, r4);
   }
   lastpc = pc;
 
@@ -419,7 +435,7 @@ void CPU::exec32(const Instruction32 &insn) {
     pc &= 0xFC000000;
     pc |= (insn.jform.Disp24 << 1);
     pc -= 4;
-    printf("J 0x%08x from 0x%08x\n", pc+4, oldpc);
+    //printf("J 0x%08x from 0x%08x\n", pc+4, oldpc);
   } break;
   case 0x03: {
     uint32_t &rD = r[insn.rixform.rD];
