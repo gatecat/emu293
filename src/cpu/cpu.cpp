@@ -91,9 +91,7 @@ void CPU::step() {
   // if (pc == 0xa0ca7a44) trace_file("ufat_fstat", 4);
   // if (pc == 0xa0ca94c0) trace_file("ufat_chdir", 4);
 
-  if (pc == 0xa0c01efc) {
-    debugDump(false);
-  }
+
   /* if ((pc & 0xFE000000) != 0xA0000000) {
      debugDump(true);
      exit(1);
