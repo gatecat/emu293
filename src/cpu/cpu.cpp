@@ -88,13 +88,10 @@ void CPU::step() {
     }
   };
 
-  if (pc == 0xa0ca7a44) trace_file("ufat_fstat", 4);
-  if (pc == 0xa0ca94c0) trace_file("ufat_chdir", 4);
+  // if (pc == 0xa0ca7a44) trace_file("ufat_fstat", 4);
+  // if (pc == 0xa0ca94c0) trace_file("ufat_chdir", 4);
 
   if (pc == 0xa0c01efc) {
-    debugDump(false);
-  }
-  if (pc == 0x001c001b) {
     debugDump(false);
   }
   /* if ((pc & 0xFE000000) != 0xA0000000) {
@@ -105,8 +102,11 @@ void CPU::step() {
   /*if (pc == 0xa0c01f50) {
     debugDump();
 }*/
-  if (((pc - lastpc) > 0x4) && symbols_bwd.count(pc)) {
-    printf("%08x => %08x <%s>, r4=%08x \n", lastpc, pc, symbols_bwd[pc].c_str(), r4);
+  if (((pc - lastpc) > 0x4) /*&& symbols_bwd.count(pc)*/) {
+    //printf("%08x => %08x, r4=%08x \n", lastpc, pc, /*symbols_bwd[pc].c_str(),*/ r4);
+  }
+  if (pc <= 0x01000000) {
+    debugDump(false);
   }
   lastpc = pc;
 
@@ -129,7 +129,7 @@ void CPU::step() {
       queuedInterrupt = -1;
     }
   }
-  if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000 ||  (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) {
+  if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000) {
     auto ptr = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? imemPtr : memPtr;
     uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFF : 0x01FFFFFF;
     uint32_t instruction = get_uint32le(ptr + (pc & mask));
@@ -164,8 +164,8 @@ void CPU::step() {
       }
     }
   } else {
+
     uint32_t instruction = read_memU16(pc);
-    // printf("PC=0x%08x\n",pc);
     // Pre-decode the instruction
     if (instruction & 0x8000) {
       // Remove p0 and p1 bits before handling the instruction as 30bit
@@ -1070,11 +1070,11 @@ uint32_t CPU::sra(uint32_t a, uint8_t sa, bool flags) {
 }
 
 void CPU::debugDump(bool noExit) {
-  if ((pc % 4) == 0) {
+  /* if ((pc % 4) == 0) {
     printf("mem[PC] = 0x%08x\n", read_memU32(pc));
   } else {
     printf("mem[PC] = 0x%04x\n", read_memU16(pc));
-  }
+  }*/
   printf("PC = 0x%08X                N[%c] Z[%c] C[%c] V[%c] T[%c]\n", pc,
          N ? 'x' : ' ', Z ? 'x' : ' ', C ? 'x' : ' ', V ? 'x' : ' ',
          T ? 'x' : ' ');

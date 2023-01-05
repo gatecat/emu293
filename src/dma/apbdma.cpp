@@ -11,6 +11,8 @@
 #include <functional>
 #include <vector>
 #include <atomic>
+#include <stdexcept>
+
 using namespace std;
 
 namespace Emu293 {
@@ -19,7 +21,7 @@ const int dma_nCh = 4;
 static SDL_Thread *threads[dma_nCh] = {nullptr};
 static SDL_cond *condVars[dma_nCh] = {nullptr};
 static SDL_mutex *mutexes[dma_nCh] = {nullptr};
-static atomic<bool> workAvailable[dma_nCh] = {false};
+static atomic<bool> workAvailable[dma_nCh] = {};
 const int dma_nregs = 34;
 static atomic<uint32_t> dma_regs[dma_nregs];
 

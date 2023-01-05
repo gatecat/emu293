@@ -199,8 +199,8 @@ void system_init(CPU *cpu) {
   registerPeripheral(&MIUPeripheral, 0x07);
 
   registerPeripheral(&SDPeripheral, 0x18);
-  write_memU32(0x9F000040, 0x00434150);
-  write_memU32(0x9F000044, 0x41303034);
+  // write_memU32(0x9F000040, 0x00434150);
+  // write_memU32(0x9F000044, 0x41303034);
   // stubs for internal functions: just br r3 to return
   write_memU32(0xBF000024, 0x8003bc08);
   write_memU32(0xBF000038, 0x8003bc08);

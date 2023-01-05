@@ -3,6 +3,7 @@
 #include "system.h"
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <unordered_map>
 using namespace std;
 namespace Emu293 {
