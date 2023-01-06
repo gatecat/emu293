@@ -180,7 +180,7 @@ uint32_t SDDeviceReadHandler(uint16_t addr) {
       StatusSetFlag(SD_STATUS_CMDBUFFULL, false);
     }
     uint32_t val = SD_Command_ReadResponse();
-    // printf("read resp = 0x%08x\n",val);
+    printf("read resp = 0x%08x\n",val);
     return val;
   } break;
   case SD_STATUS:

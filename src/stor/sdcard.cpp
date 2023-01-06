@@ -19,7 +19,7 @@ const uint8_t GO_IDLE_STATE = 0;
 const uint8_t ALL_SEND_CID = 2;
 const uint8_t SEND_RELATIVE_ADDR = 3;
 const uint8_t SELECT_CARD = 7;
-//	const uint8_t SEND_IF_COND			= 8;
+const uint8_t SEND_IF_COND			= 8;
 const uint8_t SEND_CSD = 9;
 const uint8_t SEND_CID = 10;
 const uint8_t STOP_TRANSMISSION = 12;
@@ -36,18 +36,19 @@ const uint8_t ERASE = 34;
 const uint8_t APP_CMD = 55;
 const uint8_t SD_SEND_OP_COND = 41;
 const uint8_t SD_SEND_SCR = 51;
+const uint8_t SD_SEND_OCR = 58;
 const uint8_t SD_SET_WIDTH = 6;
 } // namespace CMD
 // TODO: correct CRCs
-const uint32_t reg_ocr = 0x80FF8000;
+const uint32_t reg_ocr = 0xC0FF8000;
 const uint32_t reg_cid[4] = {0x42445345, 0x6D753239, 0x10000000,
                              0x0000F7FF}; // most significant word first
 // this is populated with size at runtime, but we can prepopulate some stuff
 // beforehand
 static uint32_t reg_csd[4] = {
-      0x0008015A, // [127:96] version 0, speed, etc
-      0x5B9BE000, // [95:64]  command classes,READ_BL_LEN=0xb=2048 bytes
-      0x0003E000, // [63:32]  C_SIZE_MULT=7=512
+      0x400E015A, // [127:96] version 1, speed, etc
+      0x5B99E000, // [95:64]  command classes,READ_BL_LEN=0xb=2048 bytes
+      0x00000000, // [63:32]
       0x026000FF,  // [31:0]
 }; // most significant word first
 
@@ -62,6 +63,7 @@ const uint32_t file_alignment = def_blocklen * def_sizemult;
 const uint64_t max_size = uint64_t(4096) * file_alignment;
 static uint16_t RCA = 0;
 static uint32_t bytecount = 0;
+static bool shdc_mode = 0;
 
 enum SDCardState {
   SD_STATE_IDLE = 0, // initial state
@@ -143,9 +145,9 @@ bool SD_InitCard(const char *filename) {
     }
     cardsize += padding;
   }
-  uint32_t c_size = ((cardsize / (2048 * 512)) - 1) & 0x3FFFFF;
-  reg_csd[2] |= ((c_size & 0x3U) << 30U);
-  reg_csd[1] |= (c_size >> 2U);
+  uint32_t c_size = ((cardsize / (1024 * 512)) - 1) & 0x3FFFFF;
+  reg_csd[2] |= (c_size & 0xFFFF) << 16U;
+  reg_csd[1] |= ((c_size >> 16U) & 0x3F);
   printf("csd = %08x %08x %08x %08x\n", reg_csd[0], reg_csd[1], reg_csd[2], reg_csd[3]);
   SD_ResetCard();
   return true;
@@ -172,13 +174,14 @@ static void sendR1() {
 }
 
 static void beginRead(uint32_t addr) {
-  printf("SD begin read at 0x%08x\n", addr);
+  uint64_t paddr = addr * uint64_t(512);
+  printf("SD begin read at 0x%08llx\n", (unsigned long long)paddr);
   if (currentState == SD_STATE_TRANS) {
-    if (addr >= cardsize) {
+    if (paddr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
-      printf("Address %d out of range\n", addr);
+      printf("Address %d out of range\n", (unsigned long long)paddr);
     } else {
-      offset = addr;
+      offset = paddr;
       currentState = SD_STATE_SEND;
       bytecount = 0;
     }
@@ -189,12 +192,13 @@ static void beginRead(uint32_t addr) {
 }
 
 static void beginWrite(uint32_t addr) {
+  uint64_t paddr = addr * uint64_t(512);
   // printf("SD begin write at 0x%08x\n", addr);
   if (currentState == SD_STATE_TRANS) {
-    if (addr >= cardsize) {
+    if (paddr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
     } else {
-      offset = addr;
+      offset = paddr;
       currentState = SD_STATE_RECV;
       bytecount = 0;
     }
@@ -218,6 +222,15 @@ void SD_Command(uint8_t command, uint32_t argument) {
   if (check_bit(currentCardStatus, cardStatus_appCmd)) {
     switch (command) {
     case SD_SEND_OP_COND:
+      printf("SD_SEND_OP_COND!!\n");
+      cmdRespBufPtr = 0;
+      cmdRespBuf[0] = reg_ocr;
+      if (currentState == SD_STATE_IDLE) {
+        currentState = SD_STATE_READY;
+      }
+      break;
+    case SD_SEND_OCR:
+      printf("SD_SEND_OCR!!\n");
       cmdRespBufPtr = 0;
       cmdRespBuf[0] = reg_ocr;
       if (currentState == SD_STATE_IDLE) {
@@ -396,7 +409,10 @@ void SD_Command(uint8_t command, uint32_t argument) {
     case APP_CMD:
       set_bit(currentCardStatus, cardStatus_appCmd);
       break;
-
+    case SEND_IF_COND:
+      cmdRespBufPtr = 0;
+      cmdRespBuf[0] = argument;
+      break;
     default:
       set_bit(currentCardStatus, cardStatus_iglCommand);
       sendR1();
