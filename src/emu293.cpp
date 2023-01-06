@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   InitAPBDMAThreads();
   InitBLNDMAThread();
   InitPPUThreads();
-  SD_InitCard("../roms/jg7425/test.img");
+  SD_InitCard(/*"../roms/jg7425/test.img"*/ "../../re/zone3d/sd_card.img");
 #else
   uint32_t entryPoint;
 

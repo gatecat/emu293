@@ -60,7 +60,7 @@ const uint32_t def_blocklen = 512;
 const uint16_t def_sizemult = 512;
 static uint32_t blocklen = 512;
 const uint32_t file_alignment = def_blocklen * def_sizemult;
-const uint64_t max_size = uint64_t(4096) * file_alignment;
+const uint64_t max_size = uint64_t(65536) * file_alignment;
 static uint16_t RCA = 0;
 static uint32_t bytecount = 0;
 static bool shdc_mode = 0;
@@ -123,12 +123,12 @@ bool SD_InitCard(const char *filename) {
     printf("Failed to open SD image file %s.\n", filename);
     return false;
   }
-  struct stat st;
-  fstat(imgfd, &st);
+  struct stat64 st;
+  fstat64(imgfd, &st);
   cardsize = (uint64_t)st.st_size;
   if (cardsize > max_size) {
     printf("SD image file %s exceeds maximum size of %dMB.\n", filename,
-           int(max_size / 1024 * 1024));
+           int(max_size / (1024 * 1024)));
     return false;
   } else if (cardsize == 0) {
     printf("SD card image size is 0; did file fail to open?\n");
@@ -145,7 +145,7 @@ bool SD_InitCard(const char *filename) {
     }
     cardsize += padding;
   }
-  uint32_t c_size = ((cardsize / (1024 * 512)) - 1) & 0x3FFFFF;
+  uint32_t c_size = ((cardsize / (1024ULL * 512ULL)) - 1) & 0x3FFFFF;
   reg_csd[2] |= (c_size & 0xFFFF) << 16U;
   reg_csd[1] |= ((c_size >> 16U) & 0x3F);
   printf("csd = %08x %08x %08x %08x\n", reg_csd[0], reg_csd[1], reg_csd[2], reg_csd[3]);
@@ -179,7 +179,7 @@ static void beginRead(uint32_t addr) {
   if (currentState == SD_STATE_TRANS) {
     if (paddr >= cardsize) {
       set_bit(currentCardStatus, cardStatus_outOfRange);
-      printf("Address %d out of range\n", (unsigned long long)paddr);
+      printf("Address %lld out of range\n", (unsigned long long)paddr);
     } else {
       offset = paddr;
       currentState = SD_STATE_SEND;
