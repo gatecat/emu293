@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
 #if 1
   uint32_t entryPoint;
-  entryPoint = LoadElfToRAM("/home/gatecat/re/zone3d/Lead.sys");
+  entryPoint = LoadElfToRAM("../roms/jg7425/Lead.sys");
   if (entryPoint == 0) {
     printf("Failed to load ELF\n");
     return 1;
@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   InitAPBDMAThreads();
   InitBLNDMAThread();
   InitPPUThreads();
-  SD_InitCard("/home/gatecat/re/spg293/sd3.img");
+  SD_InitCard("../roms/jg7425/test.img");
 #else
   uint32_t entryPoint;
 
