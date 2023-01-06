@@ -48,8 +48,8 @@ uint8_t read_memU8(uint32_t addr) {
         ]);
 
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
-    if (!ram_active[addr - RAM_START])
-      printf("Read8 from uninit memory location 0x%08x\n", addr);
+    // if (!ram_active[addr - RAM_START])
+      // printf("Read8 from uninit memory location 0x%08x\n", addr);
     return ram[addr - RAM_START];
   } else {
     printf("Read8 from unmapped memory location 0x%08x\n", addr);

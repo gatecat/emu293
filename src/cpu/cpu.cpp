@@ -74,7 +74,7 @@ void CPU::reset_registers() {
 }
 
 void CPU::step() {
-  static uint32_t lastpc;
+  static uint32_t lastpc, entrylr;
 
   auto trace_file = [&](const char *func, int reg) {
     uint32_t addr = r[reg];
@@ -88,8 +88,9 @@ void CPU::step() {
     }
   };
 
-  // if (pc == 0xa0ca7a44) trace_file("ufat_fstat", 4);
-  // if (pc == 0xa0ca94c0) trace_file("ufat_chdir", 4);
+  if (pc == 0xa0e795fc) trace_file("ufat_fstat", 4);
+  if (pc == 0xa0e79424) trace_file("ufat_stat", 4);
+  if (pc == 0xa0e7aea0) trace_file("ufat_chdir", 4);
 
 
   /* if ((pc & 0xFE000000) != 0xA0000000) {
@@ -100,8 +101,39 @@ void CPU::step() {
   /*if (pc == 0xa0c01f50) {
     debugDump();
 }*/
-  if (((pc - lastpc) > 0x4) /*&& symbols_bwd.count(pc)*/) {
-    //printf("%08x => %08x, r4=%08x \n", lastpc, pc, /*symbols_bwd[pc].c_str(),*/ r4);
+  auto maybe_string = [&](uint32_t val) {
+    std::string chars;
+    while ((val & 0xFE000000) == 0xA0000000) {
+      char debug_c = read_memU8(val++);
+      if (debug_c <= 0 || debug_c >= 128)
+        break;
+      if (chars.size() >= 32) {
+        chars += "...";
+        break;
+      }
+      chars += debug_c;
+    }
+    if (chars.empty())
+      return std::string("");
+    else
+      return " (\"" + chars + "\")";
+  };
+  if (((pc - lastpc) > 0x4) && symbols_bwd.count(pc)) {
+    if (symbols_bwd[pc][0] != '.' && pc != 0xa0e99880 && pc != 0xa0e99860  && pc >= 0xa0e02000) {
+      auto r4_str = maybe_string(r4);
+      auto r5_str = maybe_string(r5);
+      auto r6_str = maybe_string(r6);
+      auto r7_str = maybe_string(r7);
+
+      printf("%08x => %08x, %s r4=%08x%s r5=%08x%s r6=%08x%s r7=%08x%s\n", lastpc, pc, symbols_bwd[pc].c_str(),
+        r4, r4_str.c_str(), r5, r5_str.c_str(),
+        r6, r6_str.c_str(), r7, r7_str.c_str());
+      entrylr = r3;
+    }
+  }
+  if (pc == entrylr) {
+    printf("     return %08x\n", r4);
+    entrylr = -1;
   }
   if (pc <= 0x01000000) {
     debugDump(false);
