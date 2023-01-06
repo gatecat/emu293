@@ -133,7 +133,7 @@ void CPU::step() {
   }
   if (pc == entrylr) {
     auto r4_str = maybe_string(r4);
-    printf("     return %08x%s\n", r4, r4_str.c_str());
+    printf("     return %08x%s from %08x\n", r4, r4_str.c_str(), lastpc);
     entrylr = -1;
   }
   if (pc <= 0x01000000) {
@@ -328,19 +328,19 @@ void CPU::exec32(const Instruction32 &insn) {
 
     // mul rA, rD
     case 0x20:
-      ce_op(rA, rD, muls_op);
+      ce_op(rA, rB, muls_op);
       break;
     // mulu rA, rD
     case 0x21:
-      ce_op(rA, rD, mulu_op);
+      ce_op(rA, rB, mulu_op);
       break;
     // div rA, rD
     case 0x22:
-      ce_op(rA, rD, divs_op);
+      ce_op(rA, rB, divs_op);
       break;
     // divu rA, rD
     case 0x23:
-      ce_op(rA, rD, divu_op);
+      ce_op(rA, rB, divu_op);
       break;
 
     // mfce{hl} rD[, rA]
