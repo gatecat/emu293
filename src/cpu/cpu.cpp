@@ -132,7 +132,8 @@ void CPU::step() {
     }
   }
   if (pc == entrylr) {
-    printf("     return %08x\n", r4);
+    auto r4_str = maybe_string(r4);
+    printf("     return %08x%s\n", r4, r4_str.c_str());
     entrylr = -1;
   }
   if (pc <= 0x01000000) {

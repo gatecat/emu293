@@ -44,8 +44,13 @@ const uint32_t reg_cid[4] = {0x42445345, 0x6D753239, 0x10000000,
                              0x0000F7FF}; // most significant word first
 // this is populated with size at runtime, but we can prepopulate some stuff
 // beforehand
-static uint32_t reg_csd[4] = {0x0008015A, 0x5B9BE000, 0x0000E000,
-                              0x026000FF}; // most significant word first
+static uint32_t reg_csd[4] = {
+      0x0008015A, // [127:96] version 0, speed, etc
+      0x5B9BE000, // [95:64]  command classes,READ_BL_LEN=0xb=2048 bytes
+      0x0003E000, // [63:32]  C_SIZE_MULT=7=512
+      0x026000FF,  // [31:0]
+}; // most significant word first
+
 const uint8_t reg_scr[8] = {0x00, 0x00, 0xA5, 0x01, 0x00, 0x00, 0x00, 0x00};
 
 static int imgfd;
@@ -138,10 +143,10 @@ bool SD_InitCard(const char *filename) {
     }
     cardsize += padding;
   }
-  uint32_t c_size = ((cardsize / (512 * 512)) - 1) & 0x3FFFFF;
-  //	c_size--;
-  reg_csd[1] |= ((c_size & 0x3) << 30);
-  reg_csd[2] |= (c_size >> 2);
+  uint32_t c_size = ((cardsize / (2048 * 512)) - 1) & 0x3FFFFF;
+  reg_csd[2] |= ((c_size & 0x3U) << 30U);
+  reg_csd[1] |= (c_size >> 2U);
+  printf("csd = %08x %08x %08x %08x\n", reg_csd[0], reg_csd[1], reg_csd[2], reg_csd[3]);
   SD_ResetCard();
   return true;
 }
