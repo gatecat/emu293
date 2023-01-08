@@ -118,6 +118,7 @@ void CPU::step() {
     else
       return " (\"" + chars + "\")";
   };
+#if 0
   if (((pc - lastpc) > 0x4) && symbols_bwd.count(pc)) {
     if (symbols_bwd[pc][0] != '.' && pc != 0xa0e99880 && pc != 0xa0e99860 && pc != 0xa0e58e9c && pc != 0xa0e99840  && pc >= 0xa0e02000) {
       auto r4_str = maybe_string(r4);
@@ -131,6 +132,7 @@ void CPU::step() {
       entrylr = r3;
     }
   }
+#endif
   if (pc == entrylr) {
     auto r4_str = maybe_string(r4);
     printf("     return %08x%s from %08x\n", r4, r4_str.c_str(), lastpc);
@@ -880,6 +882,14 @@ void CPU::exec16(const Instruction16 &insn) {
     uint32_t &rD = g0[insn.iform1.rD];
     uint32_t imm = 1 << insn.iform1.Imm5;
     switch (insn.iform1.func3) {
+    // subei! rD, imm5 / addei! rD, imm5
+    case 0x00: {
+      uint32_t imm4 = 1 << (insn.iform1.Imm5 & 0xF);
+      if (insn.iform1.Imm5 & 0x10)
+        rD = sub(rD, imm4, true);
+      else
+        rD = add(rD, imm4, true);
+    }
     // srli! rD, imm5
     case 0x03:
       rD = srl(rD, insn.iform1.Imm5, true);

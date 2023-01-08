@@ -386,8 +386,10 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
   RAMToCustomFormat(chbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
                     bank, rgb && !rgb565, rgb && rgb565, bpp, (layerNo == -1));
 
+/*
   if (layerNo == -1)
     printf("w=%d h=%d, bpp=%d bank=%d chr0=%02x fmtd0=%08x\n", chwidth, chheight, bpp, bank, *(chbuf + ((chno * chsize) & 0x01FFFFFF)), chfmtd[0]);
+*/
 
   for (int y = 0; y < chheight; y++) {
     int outy;
@@ -488,10 +490,10 @@ static void RenderSprite(int idx, int currdepth) {
     bool rgb565 = check_bit(num, 27);
     volatile uint8_t *dataptr =
         (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
-    if (xpos != 0) {
+    /* if (xpos != 0) {
       printf("sprite %d at (%d, %d), chr %d, begin 0x%08x, n %08x, attr 0x%08x\n", idx, xpos, ypos,
              chnum, ppu_regs[ppu_sprite_data_begin_ptr], num, attr);
-    }
+    } */
     if (num != 0)
       RenderTextChar(dataptr, attr & 0xFFFF, chnum, chwidth, chheight, xpos, ypos,
                      -1, rgb, rgb565);
@@ -501,7 +503,7 @@ static void RenderSprite(int idx, int currdepth) {
 void PPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
   addr /= 4;
   ppu_regs[addr] = val;
-  printf("ppu write to %04x dat=%08x\n", addr, val);
+  // printf("ppu write to %04x dat=%08x\n", addr, val);
   if (addr == ppu_dma_ctrl) {
     if (check_bit(val, ppu_dma_ctrl_en)) {
       ppudma_workAvailable = true;

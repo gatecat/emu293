@@ -43,10 +43,6 @@ void registerPeripheral(const Peripheral *periph, uint8_t addr) {
 }
 
 uint8_t read_memU8(uint32_t addr) {
-    if((addr >= 0xa0ed0ec4) && (addr <= 0xa0ed0ec4 + 2048))
-        printf("Read8 from 0x%08x, value 0x%08x\n", addr, ram[addr - RAM_START
-        ]);
-
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     // if (!ram_active[addr - RAM_START])
       // printf("Read8 from uninit memory location 0x%08x\n", addr);
@@ -74,8 +70,8 @@ uint16_t read_memU16(uint32_t addr) {
                   printf("...\n");
           }*/
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
-    if (!ram_active[addr - RAM_START])
-      printf("Read16 from uninit memory location 0x%08x\n", addr);
+    //if (!ram_active[addr - RAM_START])
+      //printf("Read16 from uninit memory location 0x%08x\n", addr);
     return get_uint16le(&(ram[addr - RAM_START]));
     } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
     printf("Read from imem 0x%08x at 0x%08x\n", addr, currentCPU->pc);
