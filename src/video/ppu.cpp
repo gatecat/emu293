@@ -154,29 +154,25 @@ uint16_t rendered[480][640];
 
 uint16_t curr_line = 0;
 
-int PPUDMA_Thread(void *data) {
-  while (true) {
-    SDL_LockMutex(ppudma_mutex);
-    while (!ppudma_workAvailable) {
-      SDL_CondWait(ppudma_cvar, ppudma_mutex);
-    }
-    SDL_UnlockMutex(ppudma_mutex);
-
+void ppudma_worker() {
     if (!check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_en)) {
       ppudma_workAvailable = false;
-      continue;
+      return;
     }
 
     volatile uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x01FFFFFF);
     uint32_t *ppuptr = ppu_regs + ((ppu_regs[ppu_dma_ppu_saddr] & 0xFFFF) / 4);
+    printf("ppudma start: %08x; ram start: %08x; count=%d; dir=%s\n",
+      ppu_regs[ppu_dma_ppu_saddr], ppu_regs[ppu_dma_miu_saddr], ppu_regs[ppu_dma_word_cnt], 
+      check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_dir) ? "P2R" : "R2P");
     //+1 based on driver, needs checking
     for (int i = 0; i < (ppu_regs[ppu_dma_word_cnt] + 1); i++) {
       if (check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_dir)) {
         // PPU to RAM
-        *ppuptr = get_uint32le(ramptr);
+        set_uint32le(ramptr, *ppuptr);
       } else {
         // RAM to PPU
-        set_uint32le(ramptr, *ppuptr);
+        *ppuptr = get_uint32le(ramptr);
       }
       ramptr += 4;
       ppuptr++;
@@ -188,8 +184,6 @@ int PPUDMA_Thread(void *data) {
       SetIRQState(ppu_intno_ppudma, true);
     }
     ppudma_workAvailable = false;
-  }
-  return 0;
 }
 
 static inline uint32_t Argb1555ToCustomFormat(uint16_t argb1555) {
@@ -505,10 +499,8 @@ void PPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
   printf("ppu write to %04x dat=%08x\n", addr, val);
   if (addr == ppu_dma_ctrl) {
     if (check_bit(val, ppu_dma_ctrl_en)) {
-      SDL_LockMutex(ppudma_mutex);
       ppudma_workAvailable = true;
-      SDL_CondSignal(ppudma_cvar);
-      SDL_UnlockMutex(ppudma_mutex);
+      ppudma_worker();
     } else {
       // clear IRQ
       SetIRQState(ppu_intno_ppudma, false);
@@ -540,9 +532,11 @@ void InitPPUDevice(PeripheralInitInfo initInfo) {
 SDL_Window *ppu_window;
 SDL_Renderer *ppuwin_renderer;
 void InitPPUThreads() {
+/*
   ppudma_mutex = SDL_CreateMutex();
   ppudma_cvar = SDL_CreateCond();
   ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
+*/
   ppu_window = SDL_CreateWindow("emu293", SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED, 640, 480, 0);
   if (ppu_window == nullptr) {
