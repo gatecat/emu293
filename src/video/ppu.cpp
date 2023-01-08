@@ -210,9 +210,6 @@ static inline void BlendCustomFormatToSurface(uint32_t data, uint8_t alpha,
       g1 = (surface >> 5) & 0x3F;
       b0 = (data >> 11) & 0x1F;
       b1 = (surface >> 11) & 0x1F;
-      if (r0 != 0 && b0 != 0 && g0 != 0) {
-        printf("bit %d %d %d\n", r0, b0, g0);
-      }
       uint8_t beta = 63 - alpha;
       r = (alpha * r0 + beta * r1) >> 6;
       g = (alpha * g0 + beta * g1) >> 6;

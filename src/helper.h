@@ -7,7 +7,7 @@ using namespace std;
 #define toggle_bit(var, pos)	((var) ^= (1U << (pos)))
 #define set_bit(var, pos)	((var) |= (1U << (pos)))
 #define clear_bit(var, pos)	((var) &= ~(1U << (pos)))
-#define get_bits(var, start, count) ((var >> start) & (1U << (count-1)))
+#define get_bits(var, start, count) ((var >> start) & ((1U << (count)) - 1))
 
 #if     defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN \
 		|| defined(__LITTLE_ENDIAN__) \

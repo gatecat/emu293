@@ -10,6 +10,7 @@
 #include "system.h"
 #include <SDL2/SDL.h>
 #include <ctime>
+#include <chrono>
 
 using namespace Emu293;
 int main(int argc, char *argv[]) {
@@ -26,7 +27,7 @@ int main(int argc, char *argv[]) {
   InitBLNDMAThread();
   InitPPUThreads();
   SD_InitCard(/*"../roms/jg7425/test.img"*/ "../../re/zone3d/sd_card.img");
-  write_memU32(0xa0e00400, 0x1); // Leadsysfileflag
+  // write_memU32(0xa0e00400, 0x1); // Leadsysfileflag
 #else
   uint32_t entryPoint;
 
@@ -58,7 +59,7 @@ int main(int argc, char *argv[]) {
   system_init(&scoreCPU);
   write_memU32(0xFFFFFFEC, 1);
   int icount = 0;
-  clock_t start = clock();
+  auto start = std::chrono::steady_clock::now();
   while (1) {
     scoreCPU.step();
     icount++;
@@ -83,11 +84,13 @@ int main(int argc, char *argv[]) {
 
     fflush(stdout);
 
-    if (((clock() - start) / ((double)CLOCKS_PER_SEC)) >= 1) {
+    auto t = std::chrono::steady_clock::now();
+    auto delta = std::chrono::duration<float>(t - start).count();
+    if (delta > 1) {
       printf("%.02fMIPS\n", (icount / 1000000.0) /
-                                ((clock() - start) / ((double)CLOCKS_PER_SEC)));
+                                delta);
       icount = 0;
-      start = clock();
+      start = t;
       printf("PC=0x%08x\n", scoreCPU.pc);
     }
 
