@@ -360,7 +360,7 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
 
 static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno,
                            int chwidth, int chheight, int posx, int posy,
-                           int layerNo) {
+                           int layerNo, bool rgb = false, bool rgb565 = false) {
   bool hflip = check_bit(attr, ppu_tattr_hflip);
   bool vflip = check_bit(attr, ppu_tattr_vflip);
 
@@ -372,6 +372,8 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
   }
   int bank = get_bits(attr, 8, 5);
   int bpp = ppu_bpp_values[attr & 0x03];
+  if (rgb || rgb565)
+    bpp = 16;
   if (chno != 0) {
     // printf("chr 0x%08x\n", chno);
     // printf("dat = 0x%08x\n",
@@ -380,8 +382,12 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
   }
   // convert char to a format we like
   uint32_t *chfmtd = new uint32_t[chwidth * chheight];
-  RAMToCustomFormat(memptr + (chno & 0x01FFFFFF), chfmtd, chwidth * chheight,
-                    bank, false, false, bpp, (layerNo == -1));
+  int chsize = (chwidth * chheight * bpp) / 8;
+  RAMToCustomFormat(chbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
+                    bank, rgb && !rgb565, rgb && rgb565, bpp, (layerNo == -1));
+
+  if (layerNo == -1)
+    printf("w=%d h=%d, bpp=%d bank=%d chr0=%02x fmtd0=%08x\n", chwidth, chheight, bpp, bank, *(chbuf + ((chno * chsize) & 0x01FFFFFF)), chfmtd[0]);
 
   for (int y = 0; y < chheight; y++) {
     int outy;
@@ -441,8 +447,8 @@ static void RenderTextLayer(int layerNo) {
     }
   } else {
     // char mode
-    int chwidth = ppu_text_sizes[get_bits(attr, 2, 2)];
-    int chheight = ppu_text_sizes[get_bits(attr, 4, 2)];
+    int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
+    int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
     bool reg_mode = check_bit(ctrl, ppu_tctrl_regmode);
     int gridwidth = lwidth / chwidth;
     int gridheight = lheight / chheight;
@@ -473,20 +479,22 @@ static void RenderSprite(int idx, int currdepth) {
   if (idx < ppu_regs[ppu_sprite_maxnum]) {
     uint32_t num = ppu_regs[ppu_sprite_begin + 2 * idx];
     uint32_t attr = ppu_regs[ppu_sprite_begin + 2 * idx + 1];
-    int chwidth = ppu_text_sizes[get_bits(attr, 2, 2)];
-    int chheight = ppu_text_sizes[get_bits(attr, 4, 2)];
+    int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
+    int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
     uint16_t chnum = num & 0xFFFF;
     uint16_t xpos = (num >> 16) & 0x3FF;
     uint16_t ypos = (attr >> 16) & 0x3FF;
+    bool rgb = check_bit(num, 26);
+    bool rgb565 = check_bit(num, 27);
     volatile uint8_t *dataptr =
         (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
     if (xpos != 0) {
-      printf("sprite %d at (%d, %d), chr %d, begin 0x%08x\n", idx, xpos, ypos,
-             chnum, ppu_regs[ppu_sprite_data_begin_ptr]);
+      printf("sprite %d at (%d, %d), chr %d, begin 0x%08x, n %08x, attr 0x%08x\n", idx, xpos, ypos,
+             chnum, ppu_regs[ppu_sprite_data_begin_ptr], num, attr);
     }
-
-    RenderTextChar(dataptr, attr & 0xFFFF, chnum, chwidth, chheight, xpos, ypos,
-                   -1);
+    if (num != 0)
+      RenderTextChar(dataptr, attr & 0xFFFF, chnum, chwidth, chheight, xpos, ypos,
+                     -1, rgb, rgb565);
   }
 };
 
