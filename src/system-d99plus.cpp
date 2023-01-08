@@ -206,5 +206,6 @@ void system_init(CPU *cpu) {
   write_memU32(0xBF000038, 0x8003bc08);
   write_memU32(0xBF000800, 0x8003bc08);
   write_memU32(0xBF000D40, 0x8003bc08);
+  write_memU32(0xa0fffff8, 0x12345678);
 }
 }

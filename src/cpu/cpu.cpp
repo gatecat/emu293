@@ -119,7 +119,7 @@ void CPU::step() {
       return " (\"" + chars + "\")";
   };
   if (((pc - lastpc) > 0x4) && symbols_bwd.count(pc)) {
-    if (symbols_bwd[pc][0] != '.' && pc != 0xa0e99880 && pc != 0xa0e99860  && pc >= 0xa0e02000) {
+    if (symbols_bwd[pc][0] != '.' && pc != 0xa0e99880 && pc != 0xa0e99860 && pc != 0xa0e58e9c && pc != 0xa0e99840  && pc >= 0xa0e02000) {
       auto r4_str = maybe_string(r4);
       auto r5_str = maybe_string(r5);
       auto r6_str = maybe_string(r6);

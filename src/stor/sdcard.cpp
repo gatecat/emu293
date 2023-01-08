@@ -437,7 +437,8 @@ void SD_Write(volatile uint8_t *buf, int len) {
   if (currentState == SD_STATE_RECV) {
     uint8_t *tempbuf = new uint8_t[len];
     copy(buf, buf + len, tempbuf);
-    int bytes = pwrite(imgfd, (void *)tempbuf, len, offset);
+    // int bytes = pwrite(imgfd, (void *)tempbuf, len, offset);
+    int bytes = len; // don't actually touch image....
     delete[] tempbuf;
     bytecount += bytes;
     offset += bytes;

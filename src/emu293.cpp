@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
   InitBLNDMAThread();
   InitPPUThreads();
   SD_InitCard(/*"../roms/jg7425/test.img"*/ "../../re/zone3d/sd_card.img");
+  write_memU32(0xa0e00400, 0x1); // Leadsysfileflag
 #else
   uint32_t entryPoint;
 
