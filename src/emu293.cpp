@@ -82,18 +82,18 @@ int main(int argc, char *argv[]) {
       // SDL_Delay(1);
     }
 
-    fflush(stdout);
-
-    auto t = std::chrono::steady_clock::now();
-    auto delta = std::chrono::duration<float>(t - start).count();
-    if (delta > 1) {
-      printf("%.02fMIPS\n", (icount / 1000000.0) /
-                                delta);
-      icount = 0;
-      start = t;
-      printf("PC=0x%08x\n", scoreCPU.pc);
+    if ((icount % 10) == 0) {
+      fflush(stdout);
+      auto t = std::chrono::steady_clock::now();
+      auto delta = std::chrono::duration<float>(t - start).count();
+      if (delta > 1) {
+        printf("%.02fMIPS\n", (icount / 1000000.0) /
+                                  delta);
+        icount = 0;
+        start = t;
+        printf("PC=0x%08x\n", scoreCPU.pc);
+      }
     }
-
     // SDL_Delay(1);
   }
   SDL_Quit();
