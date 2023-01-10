@@ -6,7 +6,7 @@ LDFLAGS += -lSDL2
 all: emu293
 
 emu293: $(obj)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -Wall -o $@ $^ $(LDFLAGS)
 
 
 .PHONY: clean

@@ -343,7 +343,7 @@ int BLNDMA_Thread(void *data) {
     } break;
     }
     clear_bit(blndma_regs[blndma_ctrl_1], blndma_ctrl1_start);
-    set_bit(blndma_regs[blndma_irq_ctrl], blndma_irq_status);
+    clear_bit(blndma_regs[blndma_irq_ctrl], blndma_irq_status);
     if (check_bit(blndma_regs[blndma_irq_ctrl], blndma_irq_int_en)) {
       SetIRQState(blndma_interrupt, true);
     }
