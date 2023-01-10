@@ -139,6 +139,7 @@ void CPU::step() {
     entrylr = -1;
   }
   if (pc <= 0x01000000) {
+    printf("%08x -> %08x\n", lastpc, pc);
     debugDump(false);
   }
   lastpc = pc;
@@ -327,7 +328,10 @@ void CPU::exec32(const Instruction32 &insn) {
     case 0x1B:
       rD = sra(rA, rB & 0x1F, insn.spform.CU);
       break;
-
+    // ror[.c] rA, RB
+    case 0x1C:
+      rD = ror(rA, rB & 0x1F, insn.spform.CU);
+      break;
     // mul rA, rD
     case 0x20:
       ce_op(rA, rB, muls_op);
@@ -427,7 +431,10 @@ void CPU::exec32(const Instruction32 &insn) {
     case 0x3B:
       rD = sra(rA, insn.spform.rB, insn.spform.CU);
       break;
-
+    // rori[.c] rD, rA, imm5
+    case 0x3C:
+      rD = ror(rA, insn.spform.rB, insn.spform.CU);
+      break;
     default:
       debugDump();
     }
@@ -890,6 +897,10 @@ void CPU::exec16(const Instruction16 &insn) {
       else
         rD = add(rD, imm4, true);
     }
+    // slli! rD, imm5
+    case 0x01:
+      rD = sll(rD, insn.iform1.Imm5, true);
+      break;
     // srli! rD, imm5
     case 0x03:
       rD = srl(rD, insn.iform1.Imm5, true);
@@ -1109,6 +1120,24 @@ uint32_t CPU::sra(uint32_t a, uint8_t sa, bool flags) {
 
   return res;
 }
+
+uint32_t CPU::ror(uint32_t a, uint8_t sa, bool flags) {
+  if (sa == 0) {
+    if (flags) {
+      basic_flags(a);
+    }
+    return a;
+  } else {
+    uint32_t res = (a >> sa);
+    res |= (a << (32u - sa));
+    if (flags) {
+      basic_flags(res);
+      C = a & (1 << (sa - 1));
+    }
+    return res;
+  }
+}
+
 
 void CPU::debugDump(bool noExit) {
   /* if ((pc % 4) == 0) {
