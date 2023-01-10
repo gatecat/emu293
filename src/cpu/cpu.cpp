@@ -897,6 +897,7 @@ void CPU::exec16(const Instruction16 &insn) {
       else
         rD = add(rD, imm4, true);
     }
+    break;
     // slli! rD, imm5
     case 0x01:
       rD = sll(rD, insn.iform1.Imm5, true);
