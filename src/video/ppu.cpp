@@ -346,11 +346,12 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   volatile uint8_t *ramBuf =
       memptr +
       (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
+  volatile uint8_t *datbuf =
+        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
   // always use attribute array in bitmap mode???
   uint16_t attr = ramBuf[lheight * 4 + line * 2] |
                   (uint16_t(ramBuf[lheight * 4 + line * 2 + 1]) << 8);
   uint32_t lineBegin = get_uint32le(&(ramBuf[line * 4]));
-  volatile uint8_t *linebuf = memptr + (lineBegin & 0x01FFFFFF);
   int bpp;
   if (rgb565 | argb1555) {
     bpp = 16;
@@ -358,6 +359,7 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
     bpp = ppu_bpp_values[attr & 0x03];
   }
   int bank = get_bits(attr, 8, 5);
+  volatile uint8_t *linebuf = datbuf + ((lineBegin * (bpp / 8)) & 0x01FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
 }
 
@@ -433,6 +435,7 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
 static void RenderTextLayer(int layerNo) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
+  printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
@@ -475,7 +478,7 @@ static void RenderTextLayer(int layerNo) {
         } else {
           uint32_t attr_offs =
               gridwidth * gridheight * 4 + (gridwidth * y + x) * 2;
-          chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]));
+          chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]) << 8U);
         }
         RenderTextChar(datbuf, chattr, chnum, chwidth, chheight, x * chwidth,
                        y * chheight, layerNo);
