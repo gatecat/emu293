@@ -200,6 +200,9 @@ static inline uint32_t Rgb565ToCustomFormat(uint16_t rgb565) { return rgb565; }
 static inline void BlendCustomFormatToSurface(uint32_t data, uint8_t alpha,
                                               uint16_t &surface) {
   if ((data & 0x80000000) == 0) {
+    if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
+        && (data & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
+        return;
     if ((data & 0x40000000) == 0) {
       surface = data & 0xFFFF;
     } else {
@@ -412,7 +415,11 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
       } else {
         if (layerNo == -1) {
           if ((outy >= 0) && (outy < 480) && (outx >= 0) && (outx < 640)) {
-            rendered[outy][outx] = (uint16_t)(chfmtd[y * chwidth + x] & 0xFFFF);
+            uint16_t rgb565 = (uint16_t)(chfmtd[y * chwidth + x] & 0xFFFF);;
+            if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
+                && rgb565 == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
+                continue;
+            rendered[outy][outx] = rgb565;
           }
         } else {
           textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
@@ -481,6 +488,10 @@ static void RenderSprite(int idx, int currdepth) {
   if (idx < ppu_regs[ppu_sprite_maxnum]) {
     uint32_t num = ppu_regs[ppu_sprite_begin + 2 * idx];
     uint32_t attr = ppu_regs[ppu_sprite_begin + 2 * idx + 1];
+    if (get_bits(attr, 13, 2) != currdepth) {
+      // sprite not on this depth layer; skip
+      return;
+    }
     int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
     int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
     uint16_t chnum = num & 0xFFFF;
@@ -570,9 +581,9 @@ static void PPURender() {
         MergeTextLayer(layer);
       }
     }
-  }
-  for (int i = 0; i < 512; i++) {
-    RenderSprite(i, 3);
+    for (int i = 0; i < 512; i++) {
+      RenderSprite(i, depth);
+    }
   }
   SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(
       (void *)rendered, 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);
