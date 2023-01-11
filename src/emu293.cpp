@@ -64,11 +64,16 @@ int main(int argc, char *argv[]) {
     scoreCPU.step();
     icount++;
 
-    if ((icount % 10000) == 0) {
-      TimerTick();
-
+    if ((icount % 4) == 0) {
+      TimerTick(false); // main PCLK/2
       // SDL_Delay(1);
     }
+
+    if ((icount % 5000) == 0) {
+      TimerTick(true); // 32kHz
+      // SDL_Delay(1);
+    }
+
 
     if ((icount % 5000) == 2500) {
       PPUTick();
@@ -82,7 +87,7 @@ int main(int argc, char *argv[]) {
       // SDL_Delay(1);
     }
 
-    if ((icount % 10) == 0) {
+    if ((icount % 100) == 0) {
       fflush(stdout);
       auto t = std::chrono::steady_clock::now();
       auto delta = std::chrono::duration<float>(t - start).count();

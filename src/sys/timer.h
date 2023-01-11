@@ -3,7 +3,8 @@
 #include "../peripheral.h"
 #include "../helper.h"
 namespace Emu293 {
+	extern const Peripheral CKGPeripheral;
 	extern const Peripheral TimerPeripheral;
-	void TimerTick();
+	void TimerTick(bool is_32khz);
 }
 

@@ -18,17 +18,61 @@ using namespace std;
 #define TIMER_UPCOUNT			4
 #define TIMER_NREGS				5
 
+#define CKG_TMR_CLKSEL			57
+#define CKG_NREGS 				88
 
 namespace Emu293 {
+	// CKG sits here because we do frequency stuff here; maybe not the wright place though?
+	uint32_t ckg_regs[CKG_NREGS] = {0};
+
+	void CKGDeviceWriteHandler(uint16_t addr, uint32_t val) {
+	  addr /= 4;
+	  if (addr < CKG_NREGS) {
+		ckg_regs[addr] = val;
+	  } else {
+		printf("CKG write error: address 0x%04x out of range, dat=0x%08x\n",
+			   addr * 4, val);
+	  }
+	}
+
+	uint32_t CKGDeviceReadHandler(uint16_t addr) {
+	  addr /= 4;
+	  if (addr < CKG_NREGS) {
+		return ckg_regs[addr];
+	  } else {
+		printf("CKG read error: address 0x%04x out of range\n", addr * 4);
+		return 0;
+	  }
+	}
+
+	void InitCKGDevice(PeripheralInitInfo initInfo) {}
+
+	const Peripheral CKGPeripheral = {"CKG", InitCKGDevice,
+										 CKGDeviceReadHandler,
+										 CKGDeviceWriteHandler};
 
 	uint32_t timer_regs[NTIMERS][TIMER_NREGS] = {0};
 
 	void InitTimerDevice(PeripheralInitInfo initInfo) {
 
 	}
-	void TimerTick() {
+
+	int div_count = 0; 
+
+	void TimerTick(bool is_32khz) {
+		if (!is_32khz) {
+			// clock divider
+			++div_count;
+			if (div_count < (ckg_regs[CKG_TMR_CLKSEL] & 0xff))
+				return;
+			else
+				div_count = 0;
+		}
 		for(int i = 0; i < NTIMERS; i++) {
 			//printf("tmr%d st = 0x%08x\n",i,timer_regs[i][TIMER_CTRL]);
+			// check which clock this timer runs on
+			if (check_bit(ckg_regs[CKG_TMR_CLKSEL], 8 + i) != is_32khz)
+				continue;
 			if(check_bit(timer_regs[i][TIMER_CTRL],TIMER_CTRL_EN) && (check_bit(timer_regs[i][TIMER_CTRL_CCP],31)==check_bit(timer_regs[i][TIMER_CTRL_CCP],30))) {
 				//printf("tck tmr%d\n",i);
 				if(timer_regs[i][TIMER_UPCOUNT] <= 0xFFFF) {

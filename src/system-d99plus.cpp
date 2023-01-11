@@ -186,6 +186,7 @@ void system_init(CPU *cpu) {
     imem[i] = 0xFF;*/
   registerPeripheral(&IRQPeripheral, 0x0A);
   registerPeripheral(&TimerPeripheral, 0x16);
+  registerPeripheral(&CKGPeripheral, 0x21);
   registerPeripheral(&GPIOPeripheral, 0x20);
   registerPeripheral(&APBDMAPeripheral, 0x08);
   registerPeripheral(&BLNDMAPeripheral, 0x0D);
