@@ -6,6 +6,7 @@
 #include "sys/timer.h"
 #include "video/ppu.h"
 #include "video/tve.h"
+#include "io/ir_gamepad.h"
 
 #include "system.h"
 #include <SDL2/SDL.h>
@@ -67,6 +68,10 @@ int main(int argc, char *argv[]) {
     if ((icount % 4) == 0) {
       TimerTick(false); // main PCLK/2
       // SDL_Delay(1);
+    }
+
+    if ((icount % 320) == 0) {
+      IRGamepadTick();
     }
 
     if ((icount % 5000) == 0) {

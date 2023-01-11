@@ -196,12 +196,12 @@ namespace Emu293 {
 							}
 						}
 					}
-					if(gpio_reg_interrupt[addr + i] && i >= 2) {
-						for(int bit = 0; bit < 7; bit++) {
-							if(check_bit(newValue,bit) == 1){
-								SetIRQState(GPIOInterrupt,false);
-								clear_bit(gpio_reg[addr + i], bit);
-							}
+				}
+				if(gpio_reg_interrupt[addr + i] && i >= 2) {
+					for(int bit = 0; bit < 8; bit++) {
+						if(check_bit(newValue,bit) == 1){
+							SetIRQState(GPIOInterrupt,false);
+							clear_bit(gpio_reg[addr + i], bit);
 						}
 					}
 				}

@@ -133,6 +133,11 @@ void CPU::step() {
     }
   }
 #endif
+
+  if (pc == 0xa0e0565c) {
+    printf("    Infr_Incept_Data time_data=%04x, keydata=%04x infr_excu=%d\n", read_memU16(r2), read_memU16(0xa0ec95fa), read_memU16(0xa0ec9614));
+  }
+
   if (pc == entrylr) {
     auto r4_str = maybe_string(r4);
     printf("     return %08x%s from %08x\n", r4, r4_str.c_str(), lastpc);
@@ -142,6 +147,7 @@ void CPU::step() {
     printf("%08x -> %08x\n", lastpc, pc);
     debugDump(false);
   }
+
   lastpc = pc;
 
   if (queuedInterrupt != -1) {

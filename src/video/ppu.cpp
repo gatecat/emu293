@@ -2,6 +2,7 @@
 #include "../helper.h"
 #include "../sys/irq_if.h"
 #include "../system.h"
+#include "../io/ir_gamepad.h"
 
 // Using SDL threads due to issues with mingw and C++11 threading
 #include <SDL2/SDL.h>
@@ -162,9 +163,9 @@ void ppudma_worker() {
 
     volatile uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x01FFFFFF);
     uint32_t *ppuptr = ppu_regs + ((ppu_regs[ppu_dma_ppu_saddr] & 0xFFFF) / 4);
-    printf("ppudma start: %08x; ram start: %08x; count=%d; dir=%s\n",
+    /*printf("ppudma start: %08x; ram start: %08x; count=%d; dir=%s\n",
       ppu_regs[ppu_dma_ppu_saddr], ppu_regs[ppu_dma_miu_saddr], ppu_regs[ppu_dma_word_cnt], 
-      check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_dir) ? "P2R" : "R2P");
+      check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_dir) ? "P2R" : "R2P");*/
     //+1 based on driver, needs checking
     for (int i = 0; i < (ppu_regs[ppu_dma_word_cnt] + 1); i++) {
       if (check_bit(ppu_regs[ppu_dma_ctrl], ppu_dma_ctrl_dir)) {
@@ -230,7 +231,7 @@ static void MergeTextLayer(int layerNo) {
 
   if (check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
                 ppu_tctrl_enable)) {
-    printf("layer %d enable\n", layerNo);
+    // printf("layer %d enable\n", layerNo);
     int offX = sign_extend(
         ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos] & 0x3FF, 10);
     int offY = sign_extend(
@@ -435,7 +436,7 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
 static void RenderTextLayer(int layerNo) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
-  printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
+  // printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
@@ -604,6 +605,7 @@ void PPUUpdate() {
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT)
       break;
+    IRGamepadEvent(&e);
   }
   PPURender();
   // SDL_Delay(1000);
