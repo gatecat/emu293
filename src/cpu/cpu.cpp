@@ -165,8 +165,10 @@ void CPU::step() {
   }
   if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000) {
     auto ptr = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? imemPtr : memPtr;
-    uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFF : 0x01FFFFFF;
+    uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFC : 0x01FFFFFC;
     uint32_t instruction = get_uint32le(ptr + (pc & mask));
+    if ((pc & 0x03) == 2)
+      instruction >>= 16;
     // uint32_t instruction = read_memU16(pc);
     //printf("PC=0x%08x instr = %08x, ptr=%16x %16x\n",pc, instruction, uint64_t(ptr), imemPtr);
     // Pre-decode the instruction
