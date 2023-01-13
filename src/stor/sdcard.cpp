@@ -115,7 +115,7 @@ static void updateCardStatus() {
   currentCardStatus |= ((currentState & 0x0F) << 9);
 }
 
-volatile uint64_t offset = 0;
+uint64_t offset = 0;
 
 bool SD_InitCard(const char *filename) {
   imgfd = open64(filename, O_RDWR);
@@ -432,7 +432,7 @@ uint32_t SD_Command_ReadResponse() {
   }
 }
 
-void SD_Write(volatile uint8_t *buf, int len) {
+void SD_Write(uint8_t *buf, int len) {
   printf("SD: writing %d bytes.\n", len);
   if (currentState == SD_STATE_RECV) {
     uint8_t *tempbuf = new uint8_t[len];
@@ -453,7 +453,7 @@ void SD_Write(volatile uint8_t *buf, int len) {
   }
 }
 
-void SD_Read(volatile uint8_t *buf, int len) {
+void SD_Read(uint8_t *buf, int len) {
   printf("SD: reading %d bytes.\n", len);
 
   if (readingScr) {

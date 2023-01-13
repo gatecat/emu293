@@ -28,9 +28,9 @@ namespace Emu293 {
 #define IMEM_START_ALT 0xBF000000
 #define IMEM_SIZE 0x01000000
 
-volatile uint8_t ram[RAM_SIZE];
+uint8_t ram[RAM_SIZE];
 bool ram_active[RAM_SIZE];
-volatile uint8_t imem[IMEM_SIZE];
+uint8_t imem[IMEM_SIZE];
 
 const Peripheral *peripherals[256] = {NULL};
 
@@ -169,7 +169,7 @@ void write_memU32(uint32_t addr, uint32_t val) {
   }
 }
 
-volatile uint8_t *get_dma_ptr(uint32_t addr) {
+uint8_t *get_dma_ptr(uint32_t addr) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE)))
     return &(ram[addr - RAM_START]);
   else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE)))

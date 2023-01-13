@@ -14,7 +14,7 @@ namespace Emu293 {
 	uint32_t SD_Command_ReadResponse();
 
 	//Write data to card
-	void SD_Write(volatile uint8_t *buf, int len);
+	void SD_Write(uint8_t *buf, int len);
 	//Read data from card
-	void SD_Read(volatile uint8_t *buf, int len);
+	void SD_Read(uint8_t *buf, int len);
 }

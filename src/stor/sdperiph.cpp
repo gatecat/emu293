@@ -94,7 +94,7 @@ void StatusSetFlag(uint16_t flag, bool state) {
 }
 static CPU *currentCPU;
 
-void SDDMAReadHandler(uint32_t startAddr, uint32_t count, volatile uint8_t *buf) {
+void SDDMAReadHandler(uint32_t startAddr, uint32_t count, uint8_t *buf) {
   SD_Read(buf, count);
   sd_dat_bytes_xfrd += count;
   if (sd_dat_bytes_xfrd < sd_dat_bytes_expected) {
@@ -106,7 +106,7 @@ void SDDMAReadHandler(uint32_t startAddr, uint32_t count, volatile uint8_t *buf)
     StatusSetFlag(SD_STATUS_DATCOM, true);
   }
 }
-void SDDMAWriteHandler(uint32_t startAddr, uint32_t count, volatile uint8_t *buf) {
+void SDDMAWriteHandler(uint32_t startAddr, uint32_t count, uint8_t *buf) {
   SD_Write(buf, count);
   sd_dat_bytes_xfrd += count;
   if (sd_dat_bytes_xfrd < sd_dat_bytes_expected) {

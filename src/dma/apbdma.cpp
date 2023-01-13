@@ -28,7 +28,7 @@ static atomic<uint32_t> dma_regs[dma_nregs];
 static vector<DMAHook> hooks;
 
 // memory access pointer
-static volatile uint8_t *memptr;
+static uint8_t *memptr;
 
 // global regs - channel is determined by bit number
 const int dma_busy_sts = 0x00;
@@ -104,7 +104,7 @@ void apbdma_work(int chn) {
       workAvailable[chn] = false;
       return;
     }
-    volatile uint8_t *ramBuf = memptr + (dma_regs[dma_ahb_start_a + chn] & 0x01FFFFFF);
+    uint8_t *ramBuf = memptr + (dma_regs[dma_ahb_start_a + chn] & 0x01FFFFFF);
     uint32_t len =
         dma_regs[dma_ahb_end_a + chn] - dma_regs[dma_ahb_start_a + chn];
     if (len < 0) {
