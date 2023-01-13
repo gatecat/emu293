@@ -376,6 +376,8 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
   } else {
     trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
   }
+  if (chno == 0xffffffff)
+    return;
   int bank = get_bits(attr, 8, 5);
   int bpp = ppu_bpp_values[attr & 0x03];
   if (rgb || rgb565)
@@ -389,8 +391,10 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
   // convert char to a format we like
   uint32_t *chfmtd = new uint32_t[chwidth * chheight];
   int chsize = (chwidth * chheight * bpp) / 8;
-  RAMToCustomFormat(chbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
-                    bank, rgb && !rgb565, rgb && rgb565, bpp, (layerNo == -1));
+
+  if (!trans)
+    RAMToCustomFormat(chbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
+                      bank, rgb && !rgb565, rgb && rgb565, bpp, (layerNo == -1));
 
 /*
   if (layerNo == -1)
@@ -436,7 +440,7 @@ static void RenderTextChar(volatile uint8_t *chbuf, uint16_t attr, uint32_t chno
 static void RenderTextLayer(int layerNo) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
-  // printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
+  printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
@@ -472,13 +476,13 @@ static void RenderTextLayer(int layerNo) {
         memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
     for (int y = 0; y < gridheight; y++) {
       for (int x = 0; x < gridwidth; x++) {
-        uint32_t chnum = get_uint32le(&(numbuf[(gridwidth * y + x) * 4]));
+        uint32_t chnum = get_uint16le(&(numbuf[(gridwidth * y + x) * 2]));
         uint16_t chattr;
         if (reg_mode) {
           chattr = attr;
         } else {
           uint32_t attr_offs =
-              gridwidth * gridheight * 4 + (gridwidth * y + x) * 2;
+              gridwidth * gridheight * 2 + (gridwidth * y + x) * 2;
           chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]) << 8U);
         }
         RenderTextChar(datbuf, chattr, chnum, chwidth, chheight, x * chwidth,
