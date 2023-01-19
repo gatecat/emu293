@@ -298,7 +298,7 @@ static inline void UnpackByteArray(uint8_t *in, uint8_t *out, int bpp,
       } else {
         val = get_bits_msbfirst(in[inIndex], inBitIndex, 8 - inBitIndex)
               << (inBitIndex - 2);
-        val |= get_bits_msbfirst(in[inIndex], 0, inBitIndex - 2);
+        val |= get_bits_msbfirst(in[inIndex + 1], 0, inBitIndex - 2);
         inBitIndex = inBitIndex - 2;
         inIndex++;
       }
@@ -313,11 +313,7 @@ static inline void UnpackByteArray(uint8_t *in, uint8_t *out, int bpp,
 static inline void DepalettizeByteArray(uint8_t *in, uint32_t *out, int count,
                                         int bank, int bpp,
                                         bool sprite = false) {
-  int offset = 0;
-  if (bpp == 2)
-    offset = bank * 16; // datasheet says this, but dubious myself
-  else
-    offset = bank * (1 << bpp);
+  int offset = bank * 16;
   for (int i = 0; i < count; i++) {
     out[i] = Argb1555ToCustomFormat(uint16_t(
         ppu_regs[ppu_palette_begin + offset + in[i] + (sprite ? 0x200 : 0)] &
@@ -697,10 +693,35 @@ static void PPUDebugTextLayer(int layerNo) {
   delete[] buf;
 }
 
+static void PPUDebugSprites() {
+  std::ofstream out("../../test/ppudebug/sprites.txt");
+  for (int idx = 0; idx < 512; idx++) {
+    if (idx < ppu_regs[ppu_sprite_maxnum]) {
+      uint32_t num = ppu_regs[ppu_sprite_begin + 2 * idx];
+      uint32_t attr = ppu_regs[ppu_sprite_begin + 2 * idx + 1];
+      int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
+      int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
+      uint16_t chnum = num & 0xFFFF;
+      uint16_t xpos = (num >> 16) & 0x3FF;
+      uint16_t ypos = (attr >> 16) & 0x3FF;
+      bool rgb = check_bit(num, 26);
+      bool rgb565 = check_bit(num, 27);
+      uint8_t *dataptr =
+          (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
+      if (xpos != 0) {
+        out << stringf("sprite %d at (%d, %d), chr %d, begin 0x%08x, n %08x, attr 0x%08x\n", idx, xpos, ypos,
+               chnum, ppu_regs[ppu_sprite_data_begin_ptr], num, attr);
+      }
+    }
+  }
+}
+
 static void PPUDebug() {
   for (int i = 0; i < 3; i++)
     PPUDebugTextLayer(i);
+  PPUDebugSprites();
 }
+
 
 void PPUUpdate() {
   SDL_Event e;

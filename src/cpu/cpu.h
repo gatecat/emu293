@@ -212,6 +212,9 @@ protected:
 
   uint32_t ror(uint32_t a, uint8_t sa, bool flags);
 
+  uint32_t rol(uint32_t a, uint8_t sa, bool flags);
+
+
   volatile uint8_t *memPtr, *imemPtr;
 
   bool isPCE;
