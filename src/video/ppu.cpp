@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <functional>
 #include <vector>
+#include <fstream>
 using namespace std;
 
 #define get_bits_msbfirst(var, start, count)                                   \
@@ -604,11 +605,106 @@ static void PPURender() {
   SDL_FreeSurface(surf);
 }
 
+static void PPUDebugTextLayer(int layerNo) {
+  uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
+  uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
+  // printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
+  int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
+  int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
+
+  bool rgb565 = false, argb1555 = false;
+  if (check_bit(ctrl, ppu_tctrl_rgb555)) {
+    argb1555 = true;
+  } else if (check_bit(ctrl, ppu_tctrl_rgb565)) {
+    rgb565 = true;
+  }
+
+  if (check_bit(ctrl, ppu_tctrl_bitmap))
+    return; // TODO
+  std::ofstream out(stringf("../../test/ppudebug/layer%d.csv", layerNo));
+  if (!out)
+    printf("failed to open debug log!\n");
+
+  int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
+  int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
+  bool reg_mode = check_bit(ctrl, ppu_tctrl_regmode);
+  int gridwidth = lwidth / chwidth;
+  int gridheight = lheight / chheight;
+  uint8_t *numbuf =
+      memptr +
+      (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
+  uint8_t *datbuf =
+      memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
+  for (int y = 0; y < gridheight; y++) {
+    for (int x = 0; x < gridwidth; x++) {
+      uint32_t chnum = get_uint16le(&(numbuf[(gridwidth * y + x) * 2]));
+      uint16_t chattr;
+      if (reg_mode) {
+        chattr = attr;
+      } else {
+        uint32_t attr_offs =
+            gridwidth * gridheight * 2 + (gridwidth * y + x) * 2;
+        chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]) << 8U);
+      }
+      if (reg_mode)
+        out << stringf("%04x,", chnum, chattr);
+      else
+        out << stringf("%04x %04x,", chnum, chattr);
+    }
+    out << std::endl;
+  }
+  // dump the first 4096 chars
+  uint32_t buf_w = 64*chwidth;
+  uint32_t buf_h = 64*chheight;
+  uint32_t *buf = new uint32_t[buf_w*buf_h];
+  for (int y = 0; y < 64; y++) {
+    for (int x = 0; x < 64; x++) {
+      int chno = y*64 + x;
+      int bank = get_bits(attr, 8, 5);
+      int bpp = ppu_bpp_values[attr & 0x03];
+      if (rgb565 || argb1555)
+        bpp = 16;
+      bool trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
+      if (trans)
+        continue;
+      // convert char to a format we like
+      uint32_t *chfmtd = new uint32_t[chwidth * chheight];
+      int chsize = (chwidth * chheight * bpp) / 8;
+      RAMToCustomFormat(datbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
+                        bank, argb1555, rgb565, bpp, false);
+      for (int dy = 0; dy < chheight; dy++) {
+        for (int dx = 0; dx < chwidth; dx++) {
+          uint16_t data = chfmtd[dy*chwidth + dx];
+          // RGB565 -> bmp ARGB8888
+          buf[(y*chheight+dy)*buf_w+(x*chwidth+dx)] = 
+            (uint32_t(data & 0x1f) << 3) |
+            (uint32_t((data >> 5) & 0x3f) << 10) |
+            (uint32_t((data >> 11) & 0x1f) << 19) |
+            0xFF000000;
+        }
+      }
+      delete [] chfmtd;
+    }
+  }
+  write_bmp(stringf("../../test/ppudebug/layer%d_tiles.bmp", layerNo), buf_w, buf_h, buf);
+  delete[] buf;
+}
+
+static void PPUDebug() {
+  for (int i = 0; i < 3; i++)
+    PPUDebugTextLayer(i);
+}
+
 void PPUUpdate() {
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT)
       break;
+    if (e.type == SDL_KEYDOWN)
+        if (!e.key.repeat) {
+          if (e.key.keysym.scancode == SDL_SCANCODE_D)
+            PPUDebug();
+        }
     IRGamepadEvent(&e);
   }
   PPURender();

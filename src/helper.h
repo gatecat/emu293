@@ -1,5 +1,8 @@
 #pragma once
 #include <cstdint>
+#include <cstdarg>
+#include <stdio.h>
+#include <string>
 using namespace std;
 
 //Useful macros
@@ -18,7 +21,7 @@ using namespace std;
 		|| defined(__amd64__) || defined(_M_AMD64) \
 		|| defined(__x86_64) || defined(__x86_64__) \
 		|| defined(_M_X64) || defined(__bfin__)
-#define LITTLE_ENDIAN
+#define EMU293_LITTLE_ENDIAN
 
 #else
 	#error "Big endian architectures not yet supported (sorry)"
@@ -30,28 +33,28 @@ using namespace std;
 namespace Emu293 {
 	//convert bytes from array to/from uint32/uint16, little endian
 	inline uint32_t get_uint32le(const volatile uint8_t *arr) {
-	#ifdef LITTLE_ENDIAN
+	#ifdef EMU293_LITTLE_ENDIAN
 		return *reinterpret_cast<const volatile uint32_t*>(arr);
 	#else
 		return 0;
 	#endif
 	}
 	inline uint16_t get_uint16le(const volatile uint8_t *arr) {
-	#ifdef LITTLE_ENDIAN
+	#ifdef EMU293_LITTLE_ENDIAN
 		return *reinterpret_cast<const volatile uint16_t*>(arr);
 	#else
 		return 0;
 	#endif
 	}
 	inline void set_uint32le(volatile uint8_t *arr, uint32_t val) {
-	#ifdef LITTLE_ENDIAN
+	#ifdef EMU293_LITTLE_ENDIAN
 		*reinterpret_cast<volatile uint32_t*>(arr)=val;
 	#else
 
 	#endif
 	}
 	inline void set_uint16le(volatile uint8_t *arr, uint16_t val) {
-	#ifdef LITTLE_ENDIAN
+	#ifdef EMU293_LITTLE_ENDIAN
 		*reinterpret_cast<volatile uint16_t*>(arr)=val;
 	#else
 
@@ -69,4 +72,7 @@ namespace Emu293 {
 		result |= (val << 24) & 0x000000FF;
 		return result;
 	}
+
+	std::string stringf(const char *format, ...);
+	void write_bmp(std::string filename, int width, int height, uint32_t *data);
 }
