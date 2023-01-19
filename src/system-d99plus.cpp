@@ -121,8 +121,9 @@ uint32_t read_memU32(uint32_t addr) {
     if (peripherals[pAddr] != NULL) {
       return peripherals[pAddr]->regRead(addr & 0xFFFF);
     } else {
-      printf("Read32 from unmapped peripheral location 0x%08x at 0x%08x\n",
-             addr, currentCPU->pc);
+      if (pAddr != 0x05)
+        printf("Read32 from unmapped peripheral location 0x%08x at 0x%08x\n",
+               addr, currentCPU->pc);
       /*  if ((pAddr != 0x21) && (pAddr != 0x05))
           currentCPU->debugDump();*/
 

@@ -926,7 +926,10 @@ void CPU::exec16(const Instruction16 &insn) {
     case 0x06:
       bit_and(rD, imm, true);
       break;
-
+    // bittgt! rD, imm5
+    case 0x07:
+      rD = bit_xor(rD, imm, true);
+      break;
     default:
       debugDump();
     }
