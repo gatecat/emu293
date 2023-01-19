@@ -16,9 +16,14 @@
 using namespace Emu293;
 int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
-#if 1
+
+  if (argc < 3) {
+    printf("Usage: ./emu293 lead.sys sdcard.img\n");
+    return 1;
+  }
+
   uint32_t entryPoint;
-  entryPoint = LoadElfToRAM("../roms/jg7425/Lead.sys");
+  entryPoint = LoadElfToRAM(argv[1]);
   if (entryPoint == 0) {
     printf("Failed to load ELF\n");
     return 1;
@@ -27,28 +32,10 @@ int main(int argc, char *argv[]) {
   InitAPBDMAThreads();
   InitBLNDMAThread();
   InitPPUThreads();
-  SD_InitCard(/*"../roms/jg7425/test.img"*/ "../../re/zone3d/sd_card.img");
-  // write_memU32(0xa0e00400, 0x1); // Leadsysfileflag
-#else
-  uint32_t entryPoint;
-
-  FILE *romFile;
-  romFile = fopen("/mnt/data/spg293/zone3d.u14","rb");
-  if(!romFile) {
-    printf("Failed to open ROM file\n");
-    return 0;
+  if (!SD_InitCard(argv[2])) {
+    printf("Failed to load SD card image\n");
   }
-  uint32_t addr = 0x9F000000;
-  unsigned char c;
-  while (!feof(romFile)){
-    c = fgetc(romFile);
-    write_memU8(addr++, c);
-  }
-  fclose(romFile); 
 
-  entryPoint = 0x9F000000;
-  SD_InitCard("/mnt/data/spg293/zone3d.img");
-#endif
   CPU scoreCPU;
 
   scoreCPU.reset();
