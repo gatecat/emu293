@@ -233,6 +233,12 @@ static void MergeTextLayer(int layerNo) {
   if (check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
                 ppu_tctrl_enable)) {
     // printf("layer %d enable\n", layerNo);
+    /* printf("layer %d dx %04x dy %04x mode %01x\n",
+       layerNo,
+       ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos],
+       ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos],
+       ppu_regs[ppu_control] & 0x03
+    ); */
     int offX = sign_extend(
         ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos] & 0x3FF, 10);
     int offY = sign_extend(
@@ -249,6 +255,7 @@ static void MergeTextLayer(int layerNo) {
       if (hmve) {
         mvx += (ppu_regs[ppu_text_hmve_start + ly] & 0x1FF);
       }
+      mvx = 0; // HACK for NES EMU
       for (int x = 0; x < swidth; x++) {
         if (blnden) {
           BlendCustomFormatToSurface(
