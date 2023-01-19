@@ -759,6 +759,22 @@ void CPU::exec16(const Instruction16 &insn) {
     case 0x05:
       T = conditional(insn.rform.rD);
       break;
+    // sll!
+    case 0x08:
+      g0[insn.rform.rD] = sll(g0[insn.rform.rD], g0[insn.rform.rA] & 0x1F, true);
+      break;
+    // addc!
+    case 0x09:
+      g0[insn.rform.rD] = addc(g0[insn.rform.rA], g0[insn.rform.rD], true);
+      break;
+    // srl!
+    case 0x0A:
+      g0[insn.rform.rD] = srl(g0[insn.rform.rD], g0[insn.rform.rA] & 0x1F, true);
+      break;
+    // sra!
+    case 0x0B:
+      g0[insn.rform.rD] = sra(g0[insn.rform.rD], g0[insn.rform.rA] & 0x1F, true);
+      break;
     // br{cond}l! rAg0
     case 0x0C:
       if (conditional(insn.rform.rD)) {
@@ -1058,7 +1074,14 @@ uint32_t CPU::add(uint32_t a, uint32_t b, bool flags) {
 }
 
 uint32_t CPU::addc(uint32_t a, uint32_t b, bool flags) {
-  return add(add(a, b, false), C, flags);
+  uint64_t res = uint64_t(a) + uint64_t(b) + C;
+  if (flags) {
+    basic_flags(res);
+    C = (res >> 32) & 0x1;
+    V = ((~(a ^ b) & (a ^ res)) >> 31) & 0x1;
+  }
+
+  return res;
 }
 
 uint32_t CPU::sub(uint32_t a, uint32_t b, bool flags) {
@@ -1073,7 +1096,14 @@ uint32_t CPU::sub(uint32_t a, uint32_t b, bool flags) {
 }
 
 uint32_t CPU::subc(uint32_t a, uint32_t b, bool flags) {
-  return sub(sub(a, b, false), ~C, flags);
+  uint64_t res = uint64_t(a) - uint64_t(b) - (~C);
+  if (flags) {
+    basic_flags(res);
+    C = (res >> 32) & 0x1;
+    V = ((~(a ^ b) & (a ^ res)) >> 31) & 0x1;
+  }
+
+  return res;
 }
 
 uint32_t CPU::bit_and(uint32_t a, uint32_t b, bool flags) {
