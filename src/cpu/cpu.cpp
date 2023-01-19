@@ -939,14 +939,13 @@ void CPU::exec16(const Instruction16 &insn) {
     case 0x00:
       rD = read_memU32(r2 + (imm << 2));
       break;
-    // lbup! rDg0, imm
-    case 0x01:
-      rD = read_memU8(r2 + imm);
-      break;
-
     // lhp! rDg0, imm
-    case 0x03:
+    case 0x01:
       rD = sign_extend(read_memU16(r2 + (imm << 1)), 16);
+      break;
+    // lbup! rDg0, imm
+    case 0x03:
+      rD = read_memU8(r2 + imm);
       break;
     // swp! rDg0, imm
     case 0x04:
