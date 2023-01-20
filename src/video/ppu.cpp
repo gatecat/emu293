@@ -153,6 +153,7 @@ static bool ppudma_workAvailable = false;
 // Packing: (msb first) Ab000000 00000000 RRRRRGGG GGGBBBBB
 static uint32_t textLayers[3][512][1024];
 uint16_t rendered[480][640];
+uint16_t scaled[480][640];
 
 uint16_t curr_line = 0;
 
@@ -224,6 +225,11 @@ static inline void BlendCustomFormatToSurface(uint32_t data, uint8_t alpha,
   }
 }
 
+static inline int wrap_mod(int a, int b) {
+  int m = a % b;
+  return m >= 0 ? m : (m + b);
+}
+
 static void MergeTextLayer(int layerNo) {
   int swidth = ppu_screen_width[ppu_regs[ppu_control] & 0x03];
   int sheight = ppu_screen_height[ppu_regs[ppu_control] & 0x03];
@@ -233,16 +239,16 @@ static void MergeTextLayer(int layerNo) {
   if (check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
                 ppu_tctrl_enable)) {
     // printf("layer %d enable\n", layerNo);
-    /* printf("layer %d dx %04x dy %04x mode %01x\n",
+    /*printf("layer %d dx %04x dy %04x mode %01x\n",
        layerNo,
        ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos],
        ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos],
        ppu_regs[ppu_control] & 0x03
-    ); */
-    int offX = sign_extend(
-        ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos] & 0x3FF, 10);
-    int offY = sign_extend(
-        ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos] & 0x1FF, 9);
+    );*/
+    int offX =
+        sign_extend(ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos] & 0x7FF, 11);
+    int offY =
+        sign_extend(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos] & 0x3FF, 10);
     bool hmve = check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
                           ppu_tctrl_hmoveen);
     int alpha = ppu_regs[ppu_text_begin[layerNo] + ppu_text_blendlevel] & 0x3F;
@@ -250,21 +256,20 @@ static void MergeTextLayer(int layerNo) {
                             ppu_tctrl_blenden);
     // TODO: HCMP/VCMP support
     for (int y = 0; y < sheight; y++) {
-      int ly = (offY + y) % lheight;
-      int mvx = offX;
+      int ly = wrap_mod(y + offY, lheight);
+      int mvx = (swidth == 320) ? (offX - 128) : offX; // needed to make NES emu work
       if (hmve) {
         mvx += (ppu_regs[ppu_text_hmve_start + ly] & 0x1FF);
       }
-      mvx = 0; // HACK for NES EMU
       for (int x = 0; x < swidth; x++) {
         if (blnden) {
           BlendCustomFormatToSurface(
-              textLayers[layerNo][ly][(x + mvx) % lwidth], alpha,
+              textLayers[layerNo][ly][wrap_mod(x + mvx, lwidth)], alpha,
               rendered[y][x]);
 
         } else {
           BlendCustomFormatToSurface(
-              textLayers[layerNo][ly][(x + mvx) % lwidth], 63, rendered[y][x]);
+              textLayers[layerNo][ly][wrap_mod(x + mvx, lwidth)], 63, rendered[y][x]);
         }
       }
     }
@@ -597,8 +602,25 @@ static void PPURender() {
       RenderSprite(i, depth);
     }
   }
+
+  int swidth = ppu_screen_width[ppu_regs[ppu_control] & 0x03];
+  int sheight = ppu_screen_height[ppu_regs[ppu_control] & 0x03];
+  bool scaling = false;
+  if (swidth == 640 && sheight == 480) {
+    scaling = false;
+  } else {
+    int sx = 640/swidth;
+    int sy = 480/sheight;
+    for (int y = 0; y < 480; y++) {
+      for (int x = 0; x < 640; x++) {
+        scaled[y][x] = rendered[y/sy][x/sx];
+      }
+    }
+    scaling = true;
+  }
+
   SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(
-      (void *)rendered, 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);
+      (void *)(scaling?scaled:rendered), 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);
 
   SDL_Texture *tex = SDL_CreateTextureFromSurface(ppuwin_renderer, surf);
   SDL_RenderClear(ppuwin_renderer);
