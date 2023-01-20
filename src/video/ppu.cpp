@@ -512,8 +512,12 @@ static void RenderSprite(int idx, int currdepth) {
     int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
     int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
     uint16_t chnum = num & 0xFFFF;
-    uint16_t xpos = (num >> 16) & 0x3FF;
-    uint16_t ypos = (attr >> 16) & 0x3FF;
+    int16_t xpos = (num >> 16) & 0x3FF;
+    int16_t ypos = (attr >> 16) & 0x3FF;
+    if (xpos >= (1024 - 96))
+      xpos = xpos - 1024;
+    if (ypos >= (1024 - 128))
+      ypos = ypos - 1024;
     bool rgb = check_bit(num, 26);
     bool rgb565 = check_bit(num, 27);
     uint8_t *dataptr =
