@@ -39,7 +39,7 @@ const int ppu_screen_width[4] = {320, 640, 480, 640};
 const int ppu_screen_height[4] = {240, 480, 320, 480};
 
 const int ppu_layer_width[4] = {512, 1024, 1024, 1024};
-const int ppu_layer_height[4] = {256, 512, 512, 512};
+const int ppu_layer_height[4] = {512, 1024, 1024, 1024};
 
 const int ppu_sprite_control = 1;
 
@@ -151,7 +151,7 @@ static bool ppudma_workAvailable = false;
 
 // Slightly unusual pixel format
 // Packing: (msb first) Ab000000 00000000 RRRRRGGG GGGBBBBB
-static uint32_t textLayers[3][512][1024];
+static uint32_t textLayers[3][1024][1024];
 uint16_t rendered[480][640];
 uint16_t scaled[480][640];
 
@@ -239,16 +239,15 @@ static void MergeTextLayer(int layerNo) {
   if (check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
                 ppu_tctrl_enable)) {
     // printf("layer %d enable\n", layerNo);
-    /*printf("layer %d dx %04x dy %04x mode %01x\n",
+    /* printf("layer %d dx %04x dy %04x mode %01x\n",
        layerNo,
        ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos],
        ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos],
        ppu_regs[ppu_control] & 0x03
-    );*/
+    ); */
     int offX =
         sign_extend(ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos] & 0x7FF, 11);
-    int offY =
-        sign_extend(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos] & 0x3FF, 10);
+    int offY = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos] & 0x3FF;
     bool hmve = check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
                           ppu_tctrl_hmoveen);
     int alpha = ppu_regs[ppu_text_begin[layerNo] + ppu_text_blendlevel] & 0x3F;
@@ -259,7 +258,7 @@ static void MergeTextLayer(int layerNo) {
       int ly = wrap_mod(y + offY, lheight);
       int mvx = (swidth == 320) ? (offX - 128) : offX; // needed to make NES emu work
       if (hmve) {
-        mvx += (ppu_regs[ppu_text_hmve_start + ly] & 0x1FF);
+        mvx += ppu_regs[ppu_text_hmve_start + ly] & 0x7FF;
       }
       for (int x = 0; x < swidth; x++) {
         if (blnden) {
@@ -646,6 +645,21 @@ static void PPUDebugTextLayer(int layerNo) {
     argb1555 = true;
   } else if (check_bit(ctrl, ppu_tctrl_rgb565)) {
     rgb565 = true;
+  }
+  {
+    uint32_t *lbuf = new uint32_t[lwidth*lheight];
+    for (int y = 0; y < lheight; y++) {
+      for (int x = 0; x < lwidth; x++) {
+        uint32_t data = textLayers[layerNo][y][x];
+        lbuf[y*lwidth+x] = 
+            (uint32_t(data & 0x1f) << 3) |
+            (uint32_t((data >> 5) & 0x3f) << 10) |
+            (uint32_t((data >> 11) & 0x1f) << 19) |
+            0xFF000000;
+      }
+    }
+    write_bmp(stringf("../../test/ppudebug/layer%d_full.bmp", layerNo), lwidth, lheight, lbuf);
+    delete []lbuf;
   }
 
   if (check_bit(ctrl, ppu_tctrl_bitmap))
