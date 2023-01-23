@@ -770,7 +770,7 @@ void PPUUpdate() {
       break;
     if (e.type == SDL_KEYDOWN)
         if (!e.key.repeat) {
-          if (e.key.keysym.scancode == SDL_SCANCODE_D)
+          if (e.key.keysym.scancode == SDL_SCANCODE_F1)
             PPUDebug();
         }
     IRGamepadEvent(&e);

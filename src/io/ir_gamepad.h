@@ -5,6 +5,6 @@
 namespace Emu293 {
 
 	void IRGamepadTick();
-	void IRGamepadUpdate(int player, uint8_t state);
+	void IRGamepadUpdate(int player, uint16_t state);
 	void IRGamepadEvent(SDL_Event *ev);
 }
