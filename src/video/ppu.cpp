@@ -372,9 +372,19 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
 }
 
+static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry) {
+  entry = entry & 0x7;
+  int hx = ppu_regs[0x40+4*entry+0];
+  int hy = ppu_regs[0x40+4*entry+1];
+  int vx = ppu_regs[0x40+4*entry+2];
+  int vy = ppu_regs[0x40+4*entry+3];
+  x1 = (x0 * hx + y0 * vx) / 1024;
+  y1 = (x0 * hy + y0 * vy) / 1024;
+}
+
 static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
                            int chwidth, int chheight, int posx, int posy,
-                           int layerNo, bool rgb = false, bool rgb565 = false) {
+                           int layerNo, bool rgb = false, bool rgb565 = false, int rz = -1) {
   bool hflip = check_bit(attr, ppu_tattr_hflip);
   bool vflip = check_bit(attr, ppu_tattr_vflip);
 
@@ -430,7 +440,15 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
       } else {
         if (layerNo == -1) {
           if ((outy >= 0) && (outy < 480) && (outx >= 0) && (outx < 640)) {
-            uint16_t rgb565 = (uint16_t)(chfmtd[y * chwidth + x] & 0xFFFF);;
+            int chx = x, chy = y;
+            if (rz != -1) {
+              // rotate and zoom
+              TransformRZ(x, y, chx, chy, rz);
+              // printf("rz=%d x=%d y=%d chx=%d chy=%d\n", rz, x, y, chx, chy);
+              if (chx < 0 || chx >= chwidth || chy < 0 || chy >= chheight)
+                continue;
+            }
+            uint16_t rgb565 = (uint16_t)(chfmtd[chy * chwidth + chx] & 0xFFFF);
             if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
                 && rgb565 == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
                 continue;
@@ -519,6 +537,11 @@ static void RenderSprite(int idx, int currdepth) {
       ypos = ypos - 1024;
     bool rgb = check_bit(num, 26);
     bool rgb565 = check_bit(num, 27);
+    int rz = -1;
+    if (check_bit(num, 31)) {
+      // rotate/zoom enable
+      rz = (num >> 28) & 0x7;
+    }
     uint8_t *dataptr =
         (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
     /* if (xpos != 0) {
@@ -527,7 +550,7 @@ static void RenderSprite(int idx, int currdepth) {
     } */
     if (num != 0)
       RenderTextChar(dataptr, attr & 0xFFFF, chnum, chwidth, chheight, xpos, ypos,
-                     -1, rgb, rgb565);
+                     -1, rgb, rgb565, rz);
   }
 };
 
@@ -753,6 +776,13 @@ static void PPUDebugSprites() {
                chnum, ppu_regs[ppu_sprite_data_begin_ptr], num, attr);
       }
     }
+  }
+  // rotation table?
+  out << std::endl;
+  out << "rz table: " << std::endl;
+  for (int idx = 0; idx < 8; idx += 1) {
+    int base = 0x40 + 4 * idx;
+    out << stringf("%d: hx %4d hy %4d vx %4d vy %4d\n", idx, ppu_regs[base], ppu_regs[base+1], ppu_regs[base+2], ppu_regs[base+3]);
   }
 }
 
