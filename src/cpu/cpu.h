@@ -5,7 +5,9 @@ namespace Emu293 {
 
 class CPU {
 protected:
-  int queuedInterrupt;
+  uint64_t queuedInterrupt;
+  bool last_ien;
+
   union Instruction32 {
     Instruction32(uint32_t encoded) : encoded(encoded) {}
 

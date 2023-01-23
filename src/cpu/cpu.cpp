@@ -70,7 +70,7 @@ void CPU::reset_registers() {
 
   pc = 0;
 
-  queuedInterrupt = -1;
+  queuedInterrupt = 0;
 }
 
 void CPU::step() {
@@ -150,23 +150,32 @@ void CPU::step() {
 
   lastpc = pc;
 
-  if (queuedInterrupt != -1) {
+  if (queuedInterrupt != 0) {
     // Don't fire if interrupts are disabled
     if (!(cr0 & 1)) {
 
     } else {
       // set_bit(cr0, 0);
       // Set cause in cr2
+      uint64_t irq = 0;
+      for (unsigned i = 0; i < 64; i++) { // todo: use ffs intrinsic
+        if (queuedInterrupt & (1ULL << i)) {
+          irq = i;
+          break;
+        }
+      }
+      last_ien = (cr0 & 1);
+      clear_bit(cr0, 0);
       cr2 &= ~0x00FC0000;
-      cr2 |= (queuedInterrupt & 0x3F) << 18;
+      cr2 |= (irq & 0x3F) << 18;
 
       // Save old PC
       cr5 = pc;
 
       // Jump to interrupt
-      pc = cr3 + 0x200 + (queuedInterrupt * 4);
+      pc = cr3 + 0x200 + (irq * 4);
       // printf("Jumping to IRQ handler at %08x\n", pc);
-      queuedInterrupt = -1;
+      queuedInterrupt &= ~(1ULL << irq);
     }
   }
   if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000) {
@@ -227,7 +236,7 @@ void CPU::step() {
   }
 }
 
-void CPU::interrupt(uint8_t cause) { queuedInterrupt = cause; }
+void CPU::interrupt(uint8_t cause) { queuedInterrupt |= (1ULL << cause); }
 
 void CPU::branch(uint32_t address, bool lk) {
   if (lk)
@@ -593,6 +602,8 @@ void CPU::exec32(const Instruction32 &insn) {
       break;
     // rte
     case 0x84:
+      if (last_ien)
+        cr0 |= 0x1;
       branch(cr5 - 4, false); /* TODO: missing PSR */
       break;
 
