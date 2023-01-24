@@ -372,14 +372,16 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
 }
 
-static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry) {
+static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry, int w, int h) {
   entry = entry & 0x7;
+  x0 -= w/2;
+  y0 -= h/2;
   int hx = ppu_regs[0x40+4*entry+0];
   int hy = ppu_regs[0x40+4*entry+1];
   int vx = ppu_regs[0x40+4*entry+2];
   int vy = ppu_regs[0x40+4*entry+3];
-  x1 = (x0 * hx + y0 * vx) / 1024;
-  y1 = (x0 * hy + y0 * vy) / 1024;
+  x1 = w/2 + (x0 * hx + y0 * vx) / 1024;
+  y1 = h/2 + (x0 * hy + y0 * vy) / 1024;
 }
 
 static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
@@ -400,15 +402,16 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
   int bpp = ppu_bpp_values[attr & 0x03];
   if (rgb || rgb565)
     bpp = 16;
-  if (chno != 0) {
-    // printf("chr 0x%08x\n", chno);
-    // printf("dat = 0x%08x\n",
-    //           *reinterpret_cast<uint32_t *>(memptr + (chno & 0x01FFFFFF)));
-    // exit(1);
-  }
   // convert char to a format we like
   uint32_t *chfmtd = new uint32_t[chwidth * chheight];
   int chsize = (chwidth * chheight * bpp) / 8;
+
+  /* if (rgb && !rgb565 && chno != 0 && layerNo == -1) {
+    printf("chr 0x%08x\n", chno);
+    printf("dat = 0x%08x\n",
+               *reinterpret_cast<uint32_t *>(chbuf + ((chno * chsize) & 0x01FFFFFF)));
+    // exit(1);
+  } */
 
   if (!trans)
     RAMToCustomFormat(chbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
@@ -443,16 +446,18 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
             int chx = x, chy = y;
             if (rz != -1) {
               // rotate and zoom
-              TransformRZ(x, y, chx, chy, rz);
+              TransformRZ(x, y, chx, chy, rz, chwidth, chheight);
               // printf("rz=%d x=%d y=%d chx=%d chy=%d\n", rz, x, y, chx, chy);
               if (chx < 0 || chx >= chwidth || chy < 0 || chy >= chheight)
                 continue;
             }
-            uint16_t rgb565 = (uint16_t)(chfmtd[chy * chwidth + chx] & 0xFFFF);
+            uint32_t pixel = chfmtd[chy * chwidth + chx];
+            if (pixel & 0x80000000)
+              continue; // ARGB1555 transparency
             if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
-                && rgb565 == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
-                continue;
-            rendered[outy][outx] = rgb565;
+                && (pixel & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
+                continue; // magic colour transparency
+            rendered[outy][outx] = uint16_t(pixel & 0xFFFF);
           }
         } else {
           textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
@@ -512,7 +517,7 @@ static void RenderTextLayer(int layerNo) {
           chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]) << 8U);
         }
         RenderTextChar(datbuf, chattr, chnum, chwidth, chheight, x * chwidth,
-                       y * chheight, layerNo);
+                       y * chheight, layerNo, argb1555, rgb565);
       }
     }
   }
@@ -656,6 +661,13 @@ static void PPURender() {
   SDL_FreeSurface(surf);
 }
 
+static void PPUDebugRegisters() {
+  std::ofstream out("../../test/ppudebug/regs.txt");
+  for (int i = 0; i < 0x100; i++) {
+    out << stringf("%08x %08x\n", 0x88010000 + (4*i), ppu_regs[i]);
+  }
+}
+
 static void PPUDebugTextLayer(int layerNo) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
@@ -790,6 +802,7 @@ static void PPUDebug() {
   for (int i = 0; i < 3; i++)
     PPUDebugTextLayer(i);
   PPUDebugSprites();
+  PPUDebugRegisters();
 }
 
 
