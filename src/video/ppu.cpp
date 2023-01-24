@@ -210,16 +210,16 @@ static inline void BlendCustomFormatToSurface(uint32_t data, uint8_t alpha,
       surface = data & 0xFFFF;
     } else {
       uint16_t r0, g0, b0, r1, g1, b1, r, g, b;
-      r0 = data & 0x1F;
-      r1 = surface & 0x1F;
+      b0 = data & 0x1F;
+      b1 = surface & 0x1F;
       g0 = (data >> 5) & 0x3F;
       g1 = (surface >> 5) & 0x3F;
-      b0 = (data >> 11) & 0x1F;
-      b1 = (surface >> 11) & 0x1F;
+      r0 = (data >> 11) & 0x1F;
+      r1 = (surface >> 11) & 0x1F;
       uint8_t beta = 63 - alpha;
-      r = (alpha * r0 + beta * r1) >> 6;
-      g = (alpha * g0 + beta * g1) >> 6;
-      b = (alpha * b0 + beta * b1) >> 6;
+      r = (beta * r0 + alpha * r1) >> 6;
+      g = (beta * g0 + alpha * g1) >> 6;
+      b = (beta * b0 + alpha * b1) >> 6;
       surface = ((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F);
     }
   }
@@ -386,7 +386,8 @@ static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry, int w, int 
 
 static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
                            int chwidth, int chheight, int posx, int posy,
-                           int layerNo, bool rgb = false, bool rgb565 = false, int rz = -1) {
+                           int layerNo, bool rgb = false, bool rgb565 = false,
+                           int rz = -1, int blend = -1) {
   bool hflip = check_bit(attr, ppu_tattr_hflip);
   bool vflip = check_bit(attr, ppu_tattr_vflip);
 
@@ -457,7 +458,10 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
             if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
                 && (pixel & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
                 continue; // magic colour transparency
-            rendered[outy][outx] = uint16_t(pixel & 0xFFFF);
+            if (blend != -1)
+              BlendCustomFormatToSurface((pixel & 0xFFFF) | 0x40000000, blend, rendered[outy][outx]);
+            else
+              rendered[outy][outx] = uint16_t(pixel & 0xFFFF);
           }
         } else {
           textLayers[layerNo][outy][outx] = chfmtd[y * chwidth + x];
@@ -547,6 +551,10 @@ static void RenderSprite(int idx, int currdepth) {
       // rotate/zoom enable
       rz = (num >> 28) & 0x7;
     }
+    int blend = -1;
+    if (check_bit(attr, 15)) {
+      blend = (attr >> 26) & 0x3F;
+    }
     uint8_t *dataptr =
         (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
     /* if (xpos != 0) {
@@ -555,7 +563,7 @@ static void RenderSprite(int idx, int currdepth) {
     } */
     if (num != 0)
       RenderTextChar(dataptr, attr & 0xFFFF, chnum, chwidth, chheight, xpos, ypos,
-                     -1, rgb, rgb565, rz);
+                     -1, rgb, rgb565, rz, blend);
   }
 };
 
