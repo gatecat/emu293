@@ -348,7 +348,7 @@ static inline void RAMToCustomFormat(uint8_t *ram, uint32_t *out, int count,
 
 static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
                                  int line, int layerNo, uint32_t *out) {
-  // uint32_t r_attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
+  uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
@@ -358,15 +358,19 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   uint8_t *datbuf =
         memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
   // always use attribute array in bitmap mode???
-  uint16_t attr = ramBuf[lheight * 4 + line * 2] |
-                  (uint16_t(ramBuf[lheight * 4 + line * 2 + 1]) << 8);
-  uint32_t lineBegin = get_uint32le(&(ramBuf[line * 4]));
+  /* uint16_t attr = ramBuf[lheight * 4 + line * 2] |
+                  (uint16_t(ramBuf[lheight * 4 + line * 2 + 1]) << 8);*/
   int bpp;
   if (rgb565 | argb1555) {
     bpp = 16;
   } else {
     bpp = ppu_bpp_values[attr & 0x03];
   }
+  uint32_t lineBegin;
+  if (bpp == 16)
+    lineBegin = get_uint32le(&(ramBuf[line * 4]));
+  else
+    lineBegin = line * lwidth * (bpp / 8);
   int bank = get_bits(attr, 8, 5);
   uint8_t *linebuf = datbuf + ((lineBegin * (bpp / 8)) & 0x01FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
@@ -705,75 +709,82 @@ static void PPUDebugTextLayer(int layerNo) {
     delete []lbuf;
   }
 
-  if (check_bit(ctrl, ppu_tctrl_bitmap))
-    return; // TODO
-  std::ofstream out(stringf("../../test/ppudebug/layer%d.csv", layerNo));
-  if (!out)
-    printf("failed to open debug log!\n");
+uint8_t *numbuf =
+        memptr +
+        (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
 
-  int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
-  int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
-  bool reg_mode = check_bit(ctrl, ppu_tctrl_regmode);
-  int gridwidth = lwidth / chwidth;
-  int gridheight = lheight / chheight;
-  uint8_t *numbuf =
-      memptr +
-      (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
-  uint8_t *datbuf =
-      memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
-  for (int y = 0; y < gridheight; y++) {
-    for (int x = 0; x < gridwidth; x++) {
-      uint32_t chnum = get_uint16le(&(numbuf[(gridwidth * y + x) * 2]));
-      uint16_t chattr;
-      if (reg_mode) {
-        chattr = attr;
-      } else {
-        uint32_t attr_offs =
-            gridwidth * gridheight * 2 + (gridwidth * y + x) * 2;
-        chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]) << 8U);
-      }
-      if (reg_mode)
-        out << stringf("%04x,", chnum, chattr);
-      else
-        out << stringf("%04x %04x,", chnum, chattr);
+  if (check_bit(ctrl, ppu_tctrl_bitmap)) {
+    std::ofstream out(stringf("../../test/ppudebug/layer%d_bmp.txt", layerNo));
+    for (int y = 0; y < lheight*2; y++) {
+      uint32_t lineBegin = get_uint32le(&(numbuf[y * 4]));
+      out << stringf("%08x %08x %08x %08x\n", get_uint32le(&(numbuf[y*16+0])), get_uint32le(&(numbuf[y*16+4])), get_uint32le(&(numbuf[y*16+8])), get_uint32le(&(numbuf[y*16+12])));
     }
-    out << std::endl;
-  }
-  // dump the first 4096 chars
-  uint32_t buf_w = 64*chwidth;
-  uint32_t buf_h = 64*chheight;
-  uint32_t *buf = new uint32_t[buf_w*buf_h];
-  for (int y = 0; y < 64; y++) {
-    for (int x = 0; x < 64; x++) {
-      int chno = y*64 + x;
-      int bank = get_bits(attr, 8, 5);
-      int bpp = ppu_bpp_values[attr & 0x03];
-      if (rgb565 || argb1555)
-        bpp = 16;
-      bool trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
-      if (trans)
-        continue;
-      // convert char to a format we like
-      uint32_t *chfmtd = new uint32_t[chwidth * chheight];
-      int chsize = (chwidth * chheight * bpp) / 8;
-      RAMToCustomFormat(datbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
-                        bank, argb1555, rgb565, bpp, false);
-      for (int dy = 0; dy < chheight; dy++) {
-        for (int dx = 0; dx < chwidth; dx++) {
-          uint16_t data = chfmtd[dy*chwidth + dx];
-          // RGB565 -> bmp ARGB8888
-          buf[(y*chheight+dy)*buf_w+(x*chwidth+dx)] = 
-            (uint32_t(data & 0x1f) << 3) |
-            (uint32_t((data >> 5) & 0x3f) << 10) |
-            (uint32_t((data >> 11) & 0x1f) << 19) |
-            0xFF000000;
+  } else {
+    std::ofstream out(stringf("../../test/ppudebug/layer%d.csv", layerNo));
+    if (!out)
+      printf("failed to open debug log!\n");
+
+    int chwidth = ppu_text_sizes[get_bits(attr, 4, 2)];
+    int chheight = ppu_text_sizes[get_bits(attr, 6, 2)];
+    bool reg_mode = check_bit(ctrl, ppu_tctrl_regmode);
+    int gridwidth = lwidth / chwidth;
+    int gridheight = lheight / chheight;
+    uint8_t *datbuf =
+        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
+    for (int y = 0; y < gridheight; y++) {
+      for (int x = 0; x < gridwidth; x++) {
+        uint32_t chnum = get_uint16le(&(numbuf[(gridwidth * y + x) * 2]));
+        uint16_t chattr;
+        if (reg_mode) {
+          chattr = attr;
+        } else {
+          uint32_t attr_offs =
+              gridwidth * gridheight * 2 + (gridwidth * y + x) * 2;
+          chattr = numbuf[attr_offs] + (uint16_t(numbuf[attr_offs + 1]) << 8U);
         }
+        if (reg_mode)
+          out << stringf("%04x,", chnum, chattr);
+        else
+          out << stringf("%04x %04x,", chnum, chattr);
       }
-      delete [] chfmtd;
+      out << std::endl;
     }
+    // dump the first 4096 chars
+    uint32_t buf_w = 64*chwidth;
+    uint32_t buf_h = 64*chheight;
+    uint32_t *buf = new uint32_t[buf_w*buf_h];
+    for (int y = 0; y < 64; y++) {
+      for (int x = 0; x < 64; x++) {
+        int chno = y*64 + x;
+        int bank = get_bits(attr, 8, 5);
+        int bpp = ppu_bpp_values[attr & 0x03];
+        if (rgb565 || argb1555)
+          bpp = 16;
+        bool trans = (chno == ppu_regs[ppu_text_trans_iidx + layerNo]);
+        if (trans)
+          continue;
+        // convert char to a format we like
+        uint32_t *chfmtd = new uint32_t[chwidth * chheight];
+        int chsize = (chwidth * chheight * bpp) / 8;
+        RAMToCustomFormat(datbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
+                          bank, argb1555, rgb565, bpp, false);
+        for (int dy = 0; dy < chheight; dy++) {
+          for (int dx = 0; dx < chwidth; dx++) {
+            uint16_t data = chfmtd[dy*chwidth + dx];
+            // RGB565 -> bmp ARGB8888
+            buf[(y*chheight+dy)*buf_w+(x*chwidth+dx)] = 
+              (uint32_t(data & 0x1f) << 3) |
+              (uint32_t((data >> 5) & 0x3f) << 10) |
+              (uint32_t((data >> 11) & 0x1f) << 19) |
+              0xFF000000;
+          }
+        }
+        delete [] chfmtd;
+      }
+    }
+    write_bmp(stringf("../../test/ppudebug/layer%d_tiles.bmp", layerNo), buf_w, buf_h, buf);
+    delete[] buf;
   }
-  write_bmp(stringf("../../test/ppudebug/layer%d_tiles.bmp", layerNo), buf_w, buf_h, buf);
-  delete[] buf;
 }
 
 static void PPUDebugSprites() {
