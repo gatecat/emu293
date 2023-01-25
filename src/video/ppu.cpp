@@ -367,10 +367,11 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
     bpp = ppu_bpp_values[attr & 0x03];
   }
   uint32_t lineBegin;
-  if (bpp == 16)
+  if (bpp == 16) {
     lineBegin = get_uint32le(&(ramBuf[line * 4]));
-  else
-    lineBegin = line * (lwidth == 1024 ? 1024 : 256);
+  } else {
+    lineBegin = line * lwidth;
+  }
   int bank = get_bits(attr, 8, 5);
   uint8_t *linebuf = datbuf + ((lineBegin * (bpp / 8)) & 0x01FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
@@ -499,7 +500,7 @@ static void RenderTextLayer(int layerNo) {
       } else {
         RenderTextBitmapLine(ctrl, rgb565, argb1555, 0, layerNo, outptr);
       }
-      outptr += lwidth;
+      outptr += 1024;
     }
   } else {
     // char mode
