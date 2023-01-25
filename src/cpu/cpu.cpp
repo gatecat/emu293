@@ -75,6 +75,7 @@ void CPU::reset_registers() {
 
 void CPU::step() {
   static uint32_t lastpc, entrylr;
+#if 0
 
   auto trace_file = [&](const char *func, int reg) {
     uint32_t addr = r[reg];
@@ -118,7 +119,6 @@ void CPU::step() {
     else
       return " (\"" + chars + "\")";
   };
-#if 0
   if (((pc - lastpc) > 0x4) && symbols_bwd.count(pc)) {
     if (symbols_bwd[pc][0] != '.' && pc != 0xa0e99880 && pc != 0xa0e99860 && pc != 0xa0e58e9c && pc != 0xa0e99840  && pc >= 0xa0e02000) {
       auto r4_str = maybe_string(r4);
@@ -132,7 +132,6 @@ void CPU::step() {
       entrylr = r3;
     }
   }
-#endif
 
   if (pc == 0xa0e0565c) {
     printf("    Infr_Incept_Data time_data=%04x, keydata=%04x infr_excu=%d\n", read_memU16(r2), read_memU16(0xa0ec95fa), read_memU16(0xa0ec9614));
@@ -143,6 +142,8 @@ void CPU::step() {
     printf("     return %08x%s from %08x\n", r4, r4_str.c_str(), lastpc);
     entrylr = -1;
   }
+#endif
+
   if (pc <= 0x01000000) {
     printf("%08x -> %08x\n", lastpc, pc);
     debugDump(false);
@@ -179,7 +180,7 @@ void CPU::step() {
     }
   }
   if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000) {
-    auto ptr = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? imemPtr : memPtr;
+    auto ptr = ((pc & 0xFE000000) == 0xA0000000) ? memPtr : imemPtr;
     uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFC : 0x01FFFFFC;
     uint32_t instruction = get_uint32le(ptr + (pc & mask));
     if ((pc & 0x03) == 2)

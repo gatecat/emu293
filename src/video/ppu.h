@@ -7,6 +7,7 @@ extern const Peripheral PPUPeripheral;
 
 // Must only be called once
 void InitPPUThreads();
+void ShutdownPPU();
 
 void PPUTick();
 }

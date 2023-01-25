@@ -4,14 +4,18 @@
 #include "../system.h"
 #include "../io/ir_gamepad.h"
 
-// Using SDL threads due to issues with mingw and C++11 threading
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_thread.h>
 
 #include <cstdio>
 #include <functional>
 #include <vector>
 #include <fstream>
+
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
 using namespace std;
 
 #define get_bits_msbfirst(var, start, count)                                   \
@@ -610,21 +614,8 @@ void InitPPUDevice(PeripheralInitInfo initInfo) {
 
 SDL_Window *ppu_window;
 SDL_Renderer *ppuwin_renderer;
-void InitPPUThreads() {
-/*
-  ppudma_mutex = SDL_CreateMutex();
-  ppudma_cvar = SDL_CreateCond();
-  ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
-*/
-  ppu_window = SDL_CreateWindow("emu293", SDL_WINDOWPOS_CENTERED,
-                                SDL_WINDOWPOS_CENTERED, 640, 480, 0);
-  if (ppu_window == nullptr) {
-    printf("Failed to create window: %s.\n", SDL_GetError());
-    exit(1);
-  }
-  ppuwin_renderer =
-      SDL_CreateRenderer(ppu_window, -1, SDL_RENDERER_ACCELERATED);
-}
+bool scaling = false;
+
 static void PPURender() {
   for (int y = 0; y < 480; y++) {
     for (int x = 0; x < 640; x++) {
@@ -649,7 +640,7 @@ static void PPURender() {
 
   int swidth = ppu_screen_width[ppu_regs[ppu_control] & 0x03];
   int sheight = ppu_screen_height[ppu_regs[ppu_control] & 0x03];
-  bool scaling = false;
+  scaling = false;
   if (swidth == 640 && sheight == 480) {
     scaling = false;
   } else {
@@ -663,6 +654,11 @@ static void PPURender() {
     scaling = true;
   }
 
+}
+
+static atomic<bool> render_ready, render_done;
+
+static void PPUFlip() {
   SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(
       (void *)(scaling?scaled:rendered), 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);
 
@@ -672,6 +668,53 @@ static void PPURender() {
   SDL_RenderPresent(ppuwin_renderer);
   SDL_DestroyTexture(tex);
   SDL_FreeSurface(surf);
+  render_done = false;
+}
+
+static atomic<bool> kill_renderer;
+static condition_variable do_render_cv;
+static mutex do_render_m;
+static thread ppu_thread;
+
+void ppu_render_thread() {
+  while (!kill_renderer) {
+    std::unique_lock<std::mutex> lk(do_render_m);
+    do_render_cv.wait(lk, [] { return bool(render_ready); });
+    render_ready = false;
+    // Signal might be to die rather than render again
+    if (!kill_renderer) {
+      PPURender();
+      render_done = true;
+    }
+    lk.unlock();
+  }
+}
+
+void InitPPUThreads() {
+/*
+  ppudma_mutex = SDL_CreateMutex();
+  ppudma_cvar = SDL_CreateCond();
+  ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
+*/
+  ppu_window = SDL_CreateWindow("emu293", SDL_WINDOWPOS_CENTERED,
+                                SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+  if (ppu_window == nullptr) {
+    printf("Failed to create window: %s.\n", SDL_GetError());
+    exit(1);
+  }
+  ppuwin_renderer =
+      SDL_CreateRenderer(ppu_window, -1, SDL_RENDERER_ACCELERATED);
+  ppu_thread = thread(ppu_render_thread);
+}
+
+void ShutdownPPU() {
+  {
+    lock_guard<mutex> lk(do_render_m);
+    render_ready = true;
+    kill_renderer = true;
+  }
+  do_render_cv.notify_one();
+  ppu_thread.join();
 }
 
 static void PPUDebugRegisters() {
@@ -838,7 +881,7 @@ void PPUUpdate() {
         }
     IRGamepadEvent(&e);
   }
-  PPURender();
+  PPUFlip();
   // SDL_Delay(1000);
 }
 
@@ -852,14 +895,21 @@ void PPUTick() {
     }
   } else if (curr_line == 50) {
     curr_line++;
-    PPUUpdate();
     if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkend)) {
       SetIRQState(ppu_intno_vblkend, true);
       set_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkend);
     }
-
+    {
+      lock_guard<mutex> lk(do_render_m);
+      render_ready = true;
+    }
+    do_render_cv.notify_one();
   } else {
     curr_line++;
+  }
+  if (render_done) {
+    PPUUpdate();
+    render_done = false;
   }
 }
 
