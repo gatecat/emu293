@@ -256,7 +256,7 @@ static void MergeTextLayer(int layerNo) {
     // TODO: HCMP/VCMP support
     for (int y = 0; y < sheight; y++) {
       int ly = wrap_mod(y + offY, lheight);
-      int mvx = (swidth == 320) ? (offX - 128) : offX; // needed to make NES emu work
+      int mvx = (swidth == 320) ? 0 : offX; // needed to make NES emu work
       if (hmve) {
         mvx += ppu_regs[ppu_text_hmve_start + ly] & 0x7FF;
       }
@@ -370,7 +370,7 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   if (bpp == 16)
     lineBegin = get_uint32le(&(ramBuf[line * 4]));
   else
-    lineBegin = line * lwidth * (bpp / 8);
+    lineBegin = line * (lwidth == 1024 ? 1024 : 256);
   int bank = get_bits(attr, 8, 5);
   uint8_t *linebuf = datbuf + ((lineBegin * (bpp / 8)) & 0x01FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
