@@ -29,8 +29,13 @@ uint32_t MIUDeviceReadHandler(uint16_t addr) {
   }
 }
 
+void MIUDeviceResetHandler() {
+  for (auto &r : miu_regs)
+    r = 0;
+}
+
 void InitMIUDevice(PeripheralInitInfo initInfo) {}
 
 const Peripheral MIUPeripheral = {"MIU", InitMIUDevice, MIUDeviceReadHandler,
-                                  MIUDeviceWriteHandler};
+                                  MIUDeviceWriteHandler, MIUDeviceResetHandler};
 }

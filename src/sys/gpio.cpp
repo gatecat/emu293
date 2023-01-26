@@ -225,10 +225,17 @@ namespace Emu293 {
 			printf("Port %c does not have an interrupt capability.\n",PortInfo[port].PortLetter);
 		}
 	}
+
+	void GPIODeviceResetHandler() {
+		for (auto &r : gpio_reg)
+			r = 0;
+	}
+
 	const Peripheral GPIOPeripheral = {
 			"GPIO",
 			InitGPIODevice,
 			GPIODeviceReadHandler,
-			GPIODeviceWriteHandler
+			GPIODeviceWriteHandler,
+			GPIODeviceResetHandler
 	};
 }

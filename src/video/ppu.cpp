@@ -958,6 +958,11 @@ void PPUTick() {
   }
 }
 
+void PPUDeviceResetHandler() {
+  for (auto &r : ppu_regs)
+    r = 0;
+}
+
 const Peripheral PPUPeripheral = {"PPU", InitPPUDevice, PPUDeviceReadHandler,
-                                  PPUDeviceWriteHandler};
+                                  PPUDeviceWriteHandler, PPUDeviceResetHandler};
 }

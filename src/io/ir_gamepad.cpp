@@ -14,6 +14,8 @@ namespace Emu293 {
   // ratio between IRGamepadTick call frequency and timer frequency
   static int tick_ratio = 10;
 
+  bool softreset_flag = false;
+
   // we only care the time between falling edge IRQs
   static int t_start = 2815 / tick_ratio;
   static int t_zero = 1023 / tick_ratio;
@@ -124,6 +126,8 @@ namespace Emu293 {
               player_state[p] |= uint16_t(player_keys[p].at(ev->key.keysym.scancode));
               IRGamepadUpdate(p+1, player_state[p]);
             }
+          if (ev->key.keysym.scancode == SDL_SCANCODE_F9)
+            softreset_flag = true;
         }
         break;
       case SDL_KEYUP:

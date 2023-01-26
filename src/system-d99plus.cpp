@@ -181,6 +181,8 @@ uint8_t *get_dma_ptr(uint32_t addr) {
     return nullptr;
 }
 
+static uint32_t softreset_entryPoint;
+
 void system_init(CPU *cpu) {
   currentCPU = cpu;
   /*for (int i = 0x40; i < 0x48; i++)
@@ -206,4 +208,12 @@ void system_init(CPU *cpu) {
   write_memU32(0xBF000D40, 0x8003bc08);
   write_memU32(0xa0fffff8, 0x12345678);
 }
+
+void system_softreset() {
+  for (auto p : peripherals)
+    if (p)
+      p->reset();
+  currentCPU->reset();
+}
+
 }

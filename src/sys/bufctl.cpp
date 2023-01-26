@@ -92,9 +92,15 @@ uint32_t BUFCTLDeviceReadHandler(uint16_t addr) {
   }
 }
 
+void BUFCTLDeviceResetHandler() {
+  for (auto &r : bufctl_regs)
+    r = 0;
+}
+
 void InitBUFCTLDevice(PeripheralInitInfo initInfo) {}
 
 const Peripheral BUFCTLPeripheral = {"BUFCTL", InitBUFCTLDevice,
                                      BUFCTLDeviceReadHandler,
-                                     BUFCTLDeviceWriteHandler};
+                                     BUFCTLDeviceWriteHandler,
+                                     BUFCTLDeviceResetHandler};
 }

@@ -7,4 +7,5 @@ namespace Emu293 {
 	void IRGamepadTick();
 	void IRGamepadUpdate(int player, uint16_t state);
 	void IRGamepadEvent(SDL_Event *ev);
+	extern bool softreset_flag;
 }

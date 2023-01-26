@@ -275,9 +275,15 @@ void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
   }
 }
 
+void APBDMADeviceResetHandler() {
+  for (auto &r : dma_regs)
+    r = 0;
+}
+
 void RegisterDMAHook(DMAHook hook) { hooks.push_back(hook); }
 
 const Peripheral APBDMAPeripheral = {"APBDMA", InitAPBDMADevice,
                                      APBDMADeviceReadHandler,
-                                     APBDMADeviceWriteHandler};
+                                     APBDMADeviceWriteHandler,
+                                     APBDMADeviceResetHandler};
 }

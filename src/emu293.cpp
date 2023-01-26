@@ -90,6 +90,12 @@ int main(int argc, char *argv[]) {
         start = t;
         printf("PC=0x%08x\n", scoreCPU.pc);
       }
+      if (softreset_flag) {
+        system_softreset();
+        entryPoint = LoadElfToRAM(argv[1]);
+        scoreCPU.pc = entryPoint;
+        softreset_flag = false;
+      }
     }
     // SDL_Delay(1);
   }

@@ -5,6 +5,8 @@ using namespace std;
 namespace Emu293 {
 	void system_init(CPU *cpu);
 
+	void system_softreset();
+
 	uint8_t read_memU8(uint32_t addr);
 	void write_memU8(uint32_t addr, uint8_t val);
 

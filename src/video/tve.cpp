@@ -42,6 +42,11 @@ uint32_t TVEDeviceReadHandler(uint16_t addr) {
 }
 uint16_t tve_curr_line = 100;
 
+void TVEDeviceResetHandler() {
+  for (auto &r : tve_regs)
+    r = 0;
+}
+
 void InitTVEDevice(PeripheralInitInfo initInfo) { tve_curr_line = 100; }
 void TVETick() {
   // simulate some kind of vblank to keep the app happy
@@ -63,5 +68,5 @@ void TVETick() {
 }
 
 const Peripheral TVEPeripheral = {"TVE", InitTVEDevice, TVEDeviceReadHandler,
-                                  TVEDeviceWriteHandler};
+                                  TVEDeviceWriteHandler, TVEDeviceResetHandler};
 }

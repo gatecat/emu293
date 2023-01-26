@@ -281,6 +281,15 @@ void SDDeviceWriteHandler(uint16_t addr, uint32_t val) {
   }
 }
 
+void SDDeviceResetHandler() {
+  SD_ResetCard();
+  sd_status_reg = 0x0000100C;
+  sd_mode_ctrl = 0x02000954;
+  sd_argument_reg = 0;
+  sd_mode_ctrl = 0;
+  sd_int_ctrl = 0;
+}
+
 const Peripheral SDPeripheral = {"SD", InitSDDevice, SDDeviceReadHandler,
-                                 SDDeviceWriteHandler};
+                                 SDDeviceWriteHandler, SDDeviceResetHandler};
 }

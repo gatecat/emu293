@@ -68,6 +68,10 @@ void IRQDeviceWriteHandler(uint16_t addr, uint32_t val) {
     }
   }
 }
+void IRQDeviceResetHandler() {
+  for (auto &r : int_regs)
+    r = 0;
+}
 void SetIRQState(uint8_t IRQ, bool value) {
   // printf("IRQ %d = %d\n", IRQ, value);
   if (IRQ >= 64)
@@ -97,5 +101,5 @@ void SetInterruptsEnabled(bool enable) {
   }
 }
 const Peripheral IRQPeripheral = {"PIC", InitIRQDevice, IRQDeviceReadHandler,
-                                  IRQDeviceWriteHandler};
+                                  IRQDeviceWriteHandler, IRQDeviceResetHandler};
 }

@@ -439,7 +439,15 @@ void BLNDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
            addr * 4, val);
   }
 }
+
+void BLNDMADeviceResetHandler() {
+  for (auto &r : blndma_regs)
+    r = 0;
+}
+
+
 const Peripheral BLNDMAPeripheral = {"BLNDMA", InitBLNDMADevice,
                                      BLNDMADeviceReadHandler,
-                                     BLNDMADeviceWriteHandler};
+                                     BLNDMADeviceWriteHandler,
+                                     BLNDMADeviceResetHandler};
 } // namespace Emu293

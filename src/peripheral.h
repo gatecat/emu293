@@ -12,12 +12,14 @@ struct PeripheralInitInfo {
 typedef void (*InitHandler)(PeripheralInitInfo initInfo);
 typedef uint32_t (*ReadHandler)(uint16_t addr);
 typedef void (*WriteHandler)(uint16_t addr, uint32_t val);
+typedef void (*ResetHandler)();
 
 struct Peripheral {
 	const char *name;
 	InitHandler initPeriph;
 	ReadHandler regRead;
 	WriteHandler regWrite;
+	ResetHandler reset;
 };
 
 }
