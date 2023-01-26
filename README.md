@@ -19,10 +19,21 @@ Using:
  - run `./emu293 Lead.sys sd_card.img`
 
 Controls:
+
+player 1
  - arrow keys: joystick (in horizontal orientation, so wrongly rotated in menu)
  - enter: start
- - lshift: select
+ - rshift: select
  - x, z: B, A
+ - c: "motion"
+
+player 2:
+ - \[: start
+ - \]: select
+ - a, s: B, A
+ - d: "motion"
+
+(only enough player 2 controls are implemented for a few motion games that use both remotes).
 
 Known issues:
  - Several games have significant graphical bugs, tile layer scrolling is broken as is various advanced features
