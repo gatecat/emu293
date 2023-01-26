@@ -104,6 +104,12 @@ const int ppu_tctrl_rgb555 = 7;
 const int ppu_tctrl_blenden = 8;
 const int ppu_tctrl_rgb565 = 12;
 
+const int ppu_tctrl_roen = 9;
+const int ppu_tctrl_25d = 10;
+
+const int ppu_25d_startline = 0x3C;
+const int ppu_25d_centline = 0xC2;
+
 const int ppu_text_chnumarray = 4;
 const int ppu_text_blendlevel = 6;
 // text buffer pointer registers
@@ -234,14 +240,34 @@ static inline int wrap_mod(int a, int b) {
   return m >= 0 ? m : (m + b);
 }
 
+static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry, int w, int h) {
+  entry = entry & 0x7;
+  x0 -= w/2;
+  y0 -= h/2;
+  int hx = ppu_regs[0x40+4*entry+0];
+  int hy = ppu_regs[0x40+4*entry+1];
+  int vx = ppu_regs[0x40+4*entry+2];
+  int vy = ppu_regs[0x40+4*entry+3];
+  x1 = w/2 + (x0 * hx + y0 * vx) / 1024;
+  y1 = h/2 + (x0 * hy + y0 * vy) / 1024;
+}
+
 static void MergeTextLayer(int layerNo) {
   int swidth = ppu_screen_width[ppu_regs[ppu_control] & 0x03];
   int sheight = ppu_screen_height[ppu_regs[ppu_control] & 0x03];
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
-  if (check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
-                ppu_tctrl_enable)) {
+  uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
+  bool roen = check_bit(ctrl, ppu_tctrl_roen);
+  bool d25en = check_bit(ctrl, ppu_tctrl_25d);
+  uint8_t camy_25d = (ctrl >> 16) & 0x3F;
+  if (camy_25d == 0x0)
+    camy_25d = 0x1;
+  uint16_t start_line = ppu_regs[ppu_25d_startline];
+  uint16_t center_line = ppu_regs[ppu_25d_centline];
+
+  if (check_bit(ctrl, ppu_tctrl_enable)) {
     // printf("layer %d enable\n", layerNo);
     /* printf("layer %d dx %04x dy %04x mode %01x\n",
        layerNo,
@@ -252,27 +278,58 @@ static void MergeTextLayer(int layerNo) {
     int offX =
         sign_extend(ppu_regs[ppu_text_begin[layerNo] + ppu_text_xpos] & 0x7FF, 11);
     int offY = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ypos] & 0x3FF;
-    bool hmve = check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
-                          ppu_tctrl_hmoveen);
+    bool hmve = check_bit(ctrl, ppu_tctrl_hmoveen);
     int alpha = ppu_regs[ppu_text_begin[layerNo] + ppu_text_blendlevel] & 0x3F;
-    bool blnden = check_bit(ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl],
-                            ppu_tctrl_blenden);
+    bool blnden = check_bit(ctrl, ppu_tctrl_blenden);
     // TODO: HCMP/VCMP support
     for (int y = 0; y < sheight; y++) {
-      int ly = wrap_mod(y + offY, lheight);
       int mvx = (swidth == 320) ? 0 : offX; // needed to make NES emu work
       if (hmve) {
-        mvx += ppu_regs[ppu_text_hmve_start + ly] & 0x7FF;
+        mvx += ppu_regs[ppu_text_hmve_start + y] & 0x7FF;
+      }
+      float xscale = 1.0;
+      int sy = y;
+      if (d25en) {
+        // 2.5D: calculate scaling based on y-position
+        xscale = (y - start_line) / float(camy_25d);
+        if (xscale <= 0)
+          continue;
+        sy = (y - center_line) / xscale;
       }
       for (int x = 0; x < swidth; x++) {
+        int lx = x, ly = sy;
+        // "2.5D" using a horizontal scaling
+        //  TODO: use fixed instead of float here?
+        if (d25en) {
+          if (xscale >= 0)
+            lx = int((x - swidth / 2) / xscale);
+          else
+            continue;
+        }
+
+        int tx = lx, ty = ly;
+        // rotation - same method of sprites, always using matrix 0
+        if (roen) {
+          TransformRZ(lx, ly, tx, ty, 0, 0, 0);
+        }
+        if (d25en) {
+          // no wrapping?
+          tx = tx + mvx;
+          ty = ty + offY;
+        } else {
+          tx = wrap_mod(tx + mvx, lwidth);
+          ty = wrap_mod(ty + offY, lheight);
+        }
+        if (tx < 0 || tx >= lwidth || ty < 0 || ty >= lheight)
+          continue;
         if (blnden) {
           BlendCustomFormatToSurface(
-              textLayers[layerNo][ly][wrap_mod(x + mvx, lwidth)], alpha,
+              textLayers[layerNo][ty][tx], alpha,
               rendered[y][x]);
 
         } else {
           BlendCustomFormatToSurface(
-              textLayers[layerNo][ly][wrap_mod(x + mvx, lwidth)], 63, rendered[y][x]);
+              textLayers[layerNo][ty][tx], 63, rendered[y][x]);
         }
       }
     }
@@ -379,18 +436,6 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   int bank = get_bits(attr, 8, 5);
   uint8_t *linebuf = datbuf + ((lineBegin * (bpp / 8)) & 0x01FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
-}
-
-static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry, int w, int h) {
-  entry = entry & 0x7;
-  x0 -= w/2;
-  y0 -= h/2;
-  int hx = ppu_regs[0x40+4*entry+0];
-  int hy = ppu_regs[0x40+4*entry+1];
-  int vx = ppu_regs[0x40+4*entry+2];
-  int vy = ppu_regs[0x40+4*entry+3];
-  x1 = w/2 + (x0 * hx + y0 * vx) / 1024;
-  y1 = h/2 + (x0 * hy + y0 * vy) / 1024;
 }
 
 static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
