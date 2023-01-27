@@ -1,0 +1,38 @@
+// general
+X(NOP)
+X(MOVE)
+// ALU
+X(ADD)
+X(SUB)
+X(ADDC)
+X(SUBC)
+X(AND)
+X(XOR)
+X(OR)
+X(SLL)
+X(SRL)
+X(SRA)
+X(ROR)
+X(ROL)
+// special ALU
+X(MUL)
+X(MULU)
+X(DIV)
+X(DIVU)
+// sign extend
+X(SEXT8)
+X(SEXT16)
+X(ZEXT8)
+X(ZEXT16)
+// memory
+X(LOADU8)
+X(LOADS8)
+X(LOADU16)
+X(LOADS16)
+X(LOAD32)
+X(STORE8)
+X(STORE16)
+X(STORE32)
+// jump
+X(JNEAR)
+X(JFAR)

@@ -7,6 +7,7 @@
 #include "video/ppu.h"
 #include "video/tve.h"
 #include "io/ir_gamepad.h"
+#include "cpu/decompiler.h"
 
 #include "system.h"
 #include <SDL2/SDL.h>
@@ -28,6 +29,12 @@ int main(int argc, char *argv[]) {
     printf("Failed to load ELF\n");
     return 1;
   }
+
+  // dynarec testing...
+  auto chunk = do_decompile(0xa0e012e8, get_dma_ptr(0xa0000000)); // _write_r
+  chunk.debug_dump();
+  return 1;
+
   printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
   InitAPBDMAThreads();
   InitBLNDMAThread();
