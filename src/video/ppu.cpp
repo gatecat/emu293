@@ -149,6 +149,8 @@ const int ppu_spritel_rgb565 = 27;
 const int ppu_spritel_roen = 31; // rotation is not currently supported
 const int ppu_spriteh_blnden = 15;
 
+const int ppu_newmode = 0xc0;
+
 // Palette storage
 const int ppu_palette_begin = 0x400;
 
@@ -258,6 +260,12 @@ static void MergeTextLayer(int layerNo) {
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
 
+  if (ppu_regs[ppu_newmode] & 0x1 && lwidth == 512) {
+    // not sure if this is the correct gate here...
+    lwidth = 1024;
+    lheight = 1024;
+  }
+
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
   bool roen = check_bit(ctrl, ppu_tctrl_roen);
   bool d25en = check_bit(ctrl, ppu_tctrl_25d);
@@ -283,7 +291,7 @@ static void MergeTextLayer(int layerNo) {
     bool blnden = check_bit(ctrl, ppu_tctrl_blenden);
     // TODO: HCMP/VCMP support
     for (int y = 0; y < sheight; y++) {
-      int mvx = (swidth == 320) ? 0 : offX; // needed to make NES emu work
+      int mvx = offX; // needed to make NES emu work
       if (hmve) {
         mvx += ppu_regs[ppu_text_hmve_start + y] & 0x7FF;
       }
@@ -305,6 +313,8 @@ static void MergeTextLayer(int layerNo) {
             lx = int((x - swidth / 2) / xscale);
           else
             continue;
+        } else if (roen) {
+          lx -= (swidth / 2);
         }
 
         int tx = lx, ty = ly;
@@ -532,6 +542,12 @@ static void RenderTextLayer(int layerNo) {
   // printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
   int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
   int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
+
+  if (ppu_regs[ppu_newmode] & 0x1 && lwidth == 512) {
+    // not sure if this is the correct gate here...
+    lwidth = 1024;
+    lheight = 1024;
+  }
 
   bool rgb565 = false, argb1555 = false;
   if (check_bit(ctrl, ppu_tctrl_rgb555)) {
