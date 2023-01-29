@@ -7,6 +7,7 @@
 #include "video/ppu.h"
 #include "video/tve.h"
 #include "io/ir_gamepad.h"
+#include "audio/spu.h"
 
 #include "system.h"
 #include <SDL2/SDL.h>
@@ -32,6 +33,7 @@ int main(int argc, char *argv[]) {
   InitAPBDMAThreads();
   InitBLNDMAThread();
   InitPPUThreads();
+  SPUInitSound();
   if (!SD_InitCard(argv[2])) {
     printf("Failed to load SD card image\n");
   }
@@ -59,6 +61,10 @@ int main(int argc, char *argv[]) {
 
     if ((icount % 320) == 0) {
       IRGamepadTick();
+    }
+
+    if ((icount % 200) == 0) {
+      SPUUpdate();
     }
 
     if ((icount % 5000) == 0) {

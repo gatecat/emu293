@@ -1,4 +1,4 @@
-src = $(wildcard *.cpp cpu/*.cpp dma/*.cpp stor/*.cpp sys/*.cpp video/*.cpp io/*.cpp)
+src = $(wildcard *.cpp cpu/*.cpp dma/*.cpp stor/*.cpp sys/*.cpp video/*.cpp io/*.cpp audio/*.cpp)
 obj = $(src:.cpp=.o)
 
 CXXFLAGS = -std=c++11 -g -O3

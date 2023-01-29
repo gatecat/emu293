@@ -9,6 +9,7 @@
 #include "sys/irq.h"
 #include "sys/miu.h"
 #include "sys/timer.h"
+#include "audio/spu.h"
 
 #include "system.h"
 #include "video/ppu.h"
@@ -197,6 +198,8 @@ void system_init(CPU *cpu) {
   registerPeripheral(&TVEPeripheral, 0x03);
   registerPeripheral(&BUFCTLPeripheral, 0x09);
   registerPeripheral(&MIUPeripheral, 0x07);
+
+  registerPeripheral(&SPUPeripheral, 0x05);
 
   registerPeripheral(&SDPeripheral, 0x18);
   // write_memU32(0x9F000040, 0x00434150);

@@ -36,9 +36,8 @@ player 2:
 (only enough player 2 controls are implemented for a few motion games that use both remotes).
 
 Known issues:
- - Several games have significant graphical bugs, tile layer scrolling is broken as is various advanced features
- - There's no SPU emulation at all
- - There are some interrupt-related crashes
+ - Several games have significant graphical bugs
+ - SPU emulation only supports basic modes playing \[AD\]PCM samples from memory; CPU driven modes are unsupported
  - It's too slow, and Vsync/timer frequencies are inaccurate
 
 Credit to LiraNura's [hyperscan-emulator](https://github.com/LiraNuna/hyperscan-emulator/) from which the S+Core CPU core in here is currently based on.
