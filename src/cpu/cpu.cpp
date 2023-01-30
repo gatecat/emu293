@@ -1116,7 +1116,7 @@ uint32_t CPU::sub(uint32_t a, uint32_t b, bool flags) {
 }
 
 uint32_t CPU::subc(uint32_t a, uint32_t b, bool flags) {
-  uint64_t res = uint64_t(a) - uint64_t(b) - (~C);
+  uint64_t res = uint64_t(a) - uint64_t(b) - (C);
   if (flags) {
     basic_flags(res);
     C = (res >> 32) & 0x1;
