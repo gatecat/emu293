@@ -13,7 +13,7 @@ groups = [
 
 group_luts = [
     [0b0100, 0b1110, 0b1100, 0b0110, 0b0001, 0b1011, 0b1001, 0b0011, 0b1000, 0b0010, 0b0000, 0b1010, 0b1101, 0b0111, 0b0101, 0b1111, ],
-    [0b1010, 0b0110, 0b0010, 0b1001, 0b0000, 0b0101, 0b0001, None  , 0b1100, 0b1000, 0b1110, 0b0100, 0b0111, 0b1011, 0b0011, None  , ],
+    [0b1010, 0b0110, 0b0010, 0b1001, 0b0000, 0b0101, 0b0001, 0b1111, 0b1100, 0b1000, 0b1110, 0b0100, 0b0111, 0b1011, 0b0011, 0b1101, ],
     [0b1000, 0b1100, 0b1001, 0b1101, 0b0101, 0b0111, 0b0001, 0b1011, 0b0110, 0b0011, 0b1111, 0b0000, 0b1010, 0b1110, 0b0100, 0b0010, ],
     [0b1001, 0b0111, 0b0001, 0b0000, 0b1000, 0b1101, 0b1111, 0b0101, 0b1010, 0b0100, 0b1100, 0b1110, 0b0110, 0b0010, 0b0011, 0b1011, ],
     [0b0110, 0b1001, 0b1010, 0b0101, 0b0011, 0b1000, 0b0111, 0b0001, 0b1100, 0b0100, 0b0010, 0b1011, 0b1111, 0b0000, 0b1101, 0b1110, ],
@@ -27,7 +27,7 @@ def get_encrypted_range(elf):
         elffile = ELFFile(f)
         symtab = elffile.get_section_by_name('.symtab')
         # lead.sys files have different scrambled range...
-        is_leadsys = (symtab.get_symbol_by_name("Leadsysfileflag") is not None)
+        is_leadsys = (symtab and symtab.get_symbol_by_name("Leadsysfileflag") is not None)
         for seg in elffile.iter_segments():
             if seg.header.p_filesz > 0:
                 break # TODO better way of finding segment...
