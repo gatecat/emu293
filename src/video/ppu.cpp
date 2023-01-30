@@ -929,17 +929,28 @@ static void PPUDebug() {
   PPUDebugRegisters();
 }
 
+bool shutdown_flag = false;
+
+static void do_quit() {
+  ShutdownPPU();
+  shutdown_flag = true;
+}
 
 void PPUUpdate() {
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
-    if (e.type == SDL_QUIT)
+    if (e.type == SDL_QUIT) {
+      do_quit();
       break;
-    if (e.type == SDL_KEYDOWN)
-        if (!e.key.repeat) {
-          if (e.key.keysym.scancode == SDL_SCANCODE_F1)
-            PPUDebug();
-        }
+    }
+    if (e.type == SDL_KEYDOWN) {
+      if (!e.key.repeat) {
+        if (e.key.keysym.scancode == SDL_SCANCODE_F1)
+          PPUDebug();
+        if (e.key.keysym.scancode == SDL_SCANCODE_F4 && (e.key.keysym.mod & KMOD_ALT))
+          do_quit();
+      }
+    }
     IRGamepadEvent(&e);
   }
   PPUFlip();

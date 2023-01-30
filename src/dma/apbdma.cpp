@@ -3,10 +3,6 @@
 #include "../sys/irq_if.h"
 #include "../system.h"
 
-// Using SDL threads due to issues with mingw and C++11 threading
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_thread.h>
-
 #include <cstdio>
 #include <functional>
 #include <vector>
@@ -18,9 +14,6 @@ using namespace std;
 namespace Emu293 {
 const int dma_nCh = 4;
 
-static SDL_Thread *threads[dma_nCh] = {nullptr};
-static SDL_cond *condVars[dma_nCh] = {nullptr};
-static SDL_mutex *mutexes[dma_nCh] = {nullptr};
 static atomic<bool> workAvailable[dma_nCh] = {};
 const int dma_nregs = 34;
 static atomic<uint32_t> dma_regs[dma_nregs];
@@ -195,14 +188,6 @@ void apbdma_work(int chn) {
 }
 
 
-void InitAPBDMAThreads() {
-  /* for (int i = 0; i < dma_nCh; i++) {
-    mutexes[i] = SDL_CreateMutex();
-    condVars[i] = SDL_CreateCond();
-    threads[i] = SDL_CreateThread(APBDMA_Thread, "APBDMA", (void *)i);
-  } */
-}
-
 void ResetChannel(int chn) {
   clear_bit(dma_regs[dma_busy_sts], chn);
   clear_bit(dma_regs[dma_irq_sts], chn);
@@ -261,10 +246,6 @@ void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         } else {
           printf("APBDMA begin (ahb = 0x%08x)!\n", uint32_t(dma_regs[dma_ahb_start_a + chn]));
           set_bit(dma_regs[dma_busy_sts], chn);
-          /*SDL_LockMutex(mutexes[chn]);
-          workAvailable[chn] = true;
-          SDL_CondSignal(condVars[chn]);
-          SDL_UnlockMutex(mutexes[chn]);*/
           apbdma_work(chn);
         }
       }

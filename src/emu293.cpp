@@ -30,8 +30,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
-  InitAPBDMAThreads();
-  InitBLNDMAThread();
   InitPPUThreads();
   SPUInitSound();
   if (!SD_InitCard(argv[2])) {
@@ -101,6 +99,9 @@ int main(int argc, char *argv[]) {
         entryPoint = LoadElfToRAM(argv[1]);
         scoreCPU.pc = entryPoint;
         softreset_flag = false;
+      }
+      if (shutdown_flag) {
+        break;
       }
     }
     // SDL_Delay(1);

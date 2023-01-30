@@ -5,7 +5,4 @@
 
 namespace Emu293 {
 	extern const Peripheral BLNDMAPeripheral;
-
-	//Must only be called once
-	void InitBLNDMAThread();
 }

@@ -5,6 +5,8 @@
 namespace Emu293 {
 extern const Peripheral PPUPeripheral;
 
+extern bool shutdown_flag;
+
 // Must only be called once
 void InitPPUThreads();
 void ShutdownPPU();

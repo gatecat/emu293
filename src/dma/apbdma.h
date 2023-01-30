@@ -5,9 +5,6 @@
 namespace Emu293 {
 	extern const Peripheral APBDMAPeripheral;
 
-	//Must only be called once
-	void InitAPBDMAThreads();
-
 	//DMA hooks enable fast peripheral read/writes
 	//Buf is a byte buffer. startAddr is start address relative to peripheral hook start
 	typedef void (*DMAHandler)(uint32_t startAddr, uint32_t count, uint8_t *buf);
