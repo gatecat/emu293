@@ -69,6 +69,14 @@ struct SPUChState {
     adpcm36_prev[0] = 0;
     adpcm36_prev[1] = 0;
   }
+  void state(SaveStater &s) {
+    s.tag("SPUCH");
+    s.i(nib_addr);
+    s.i(adpcm36_header);
+    s.i(adpcm36_remain);
+    s.i(adpcm36_prev[0]);
+    s.i(adpcm36_prev[1]);
+  }
 } spu_channels[24];
 
 
@@ -299,6 +307,13 @@ void SPUDeviceResetHandler() {
     ch.reset();
 }
 
+void SPUDeviceStateHandler(SaveStater &s) {
+  s.tag("SPU");
+  s.a(spu_regs);
+  for (auto &ch : spu_channels)
+    ch.state(s);
+}
+
 static SDL_AudioDeviceID audio_dev;
 
 std::mutex spu_buf_mutex;
@@ -378,7 +393,7 @@ void audio_callback(void *userdata, uint8_t* stream, int len) {
     stream[i+3] = ((r >> 8) & 0xFF);
   }
   if (underflow) {
-    printf("underflow!!\n");
+    // printf("underflow!!\n");
     if (samp_period > min_speriod)
       samp_period -= 20;
   }
@@ -405,6 +420,7 @@ void SPUInitSound() {
 }
 
 const Peripheral SPUPeripheral = {"SPU", InitSPUDevice, SPUDeviceReadHandler,
-                                  SPUDeviceWriteHandler, SPUDeviceResetHandler};
+                                  SPUDeviceWriteHandler, SPUDeviceResetHandler,
+                                  SPUDeviceStateHandler};
 
 };

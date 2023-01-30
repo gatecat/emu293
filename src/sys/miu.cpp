@@ -34,8 +34,13 @@ void MIUDeviceResetHandler() {
     r = 0;
 }
 
+void MIUDeviceState(SaveStater &s) {
+  s.tag("MIU");
+  s.a(miu_regs);
+}
+
 void InitMIUDevice(PeripheralInitInfo initInfo) {}
 
 const Peripheral MIUPeripheral = {"MIU", InitMIUDevice, MIUDeviceReadHandler,
-                                  MIUDeviceWriteHandler, MIUDeviceResetHandler};
+                                  MIUDeviceWriteHandler, MIUDeviceResetHandler, MIUDeviceState};
 }

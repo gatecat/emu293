@@ -1,6 +1,10 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <zlib.h>
+
+#define NDEBUG
+#include <assert.h>
 
 #include "helper.h"
 
@@ -91,4 +95,49 @@ namespace Emu293 {
         }
         delete[] linebuf;
     }
+
+    void SaveStater::begin_load(const std::string &file) {
+        is_load = true;
+        f = gzopen(file.c_str(), "rb");
+        if (!f) {
+            printf("failed to open savestate file %s for load\n", file.c_str());
+            exit(1);
+        }
+        tag("SAVESTATE_00000");
+
+    }
+    void SaveStater::begin_save(const std::string &file) {
+        is_load = false;
+        f = gzopen(file.c_str(), "wb");
+        if (!f) {
+            printf("failed to open savestate file %s for save: \n", file.c_str());
+            exit(1);
+        }
+        tag("SAVESTATE_00000");
+    }
+    void SaveStater::finalise() {
+        gzclose(f);
+    }
+
+    bool is_load = false;
+    uint8_t SaveStater::raw_r() {
+        return gzgetc(f);
+    }
+    void SaveStater::raw_w(uint8_t b) {
+        gzputc(f, b);
+    }
+    void SaveStater::tag(const std::string &tag) {
+        if (is_load) {
+            for (char c : tag) {
+                char got;
+                i(got);
+                assert(got == c);
+            }
+        } else {
+            for (char c : tag) {
+                i(c);
+            }
+        }
+    }
+
 }

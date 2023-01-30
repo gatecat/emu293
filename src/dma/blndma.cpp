@@ -419,9 +419,14 @@ void BLNDMADeviceResetHandler() {
     r = 0;
 }
 
+void BLNDMADeviceDeviceState(SaveStater &s) {
+  s.tag("BLNDMA");
+  s.a(blndma_regs);
+}
 
 const Peripheral BLNDMAPeripheral = {"BLNDMA", InitBLNDMADevice,
                                      BLNDMADeviceReadHandler,
                                      BLNDMADeviceWriteHandler,
-                                     BLNDMADeviceResetHandler};
+                                     BLNDMADeviceResetHandler,
+                                     BLNDMADeviceDeviceState};
 } // namespace Emu293

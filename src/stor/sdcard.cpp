@@ -495,4 +495,14 @@ void SD_Read(uint8_t *buf, int len) {
     }
   }
 }
+
+void SD_State(SaveStater &s) {
+  s.i(offset);
+  s.e(currentState);
+  s.i(bytecount);
+  s.i(cmdRespBufPtr);
+  s.a(cmdRespBuf);
+  s.i(currentCardStatus);
+}
+
 } // namespace Emu293

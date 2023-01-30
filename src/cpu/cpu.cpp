@@ -1272,4 +1272,18 @@ void CPU::debugDump(bool noExit) {
 
   }
 }
+
+void CPU::state(SaveStater &s) {
+  s.tag("CPU");
+  s.a(r);
+  s.a(cr);
+  s.a(sr);
+  s.i(CEH);
+  s.i(CEL);
+  s.i(pc);
+  s.i(queuedInterrupt);
+  s.i(last_ien);
+}
+
+
 } // namespace Emu293

@@ -219,4 +219,16 @@ void system_softreset() {
   currentCPU->reset();
 }
 
+void system_state(SaveStater &s) {
+  s.tag("EXTMEM");
+  s.a(ram);
+  s.tag("INTMEM");
+  s.a(imem);
+  s.tag("PERIPH");
+  for (auto p : peripherals)
+    if (p)
+      p->state(s);
+  currentCPU->state(s);
+}
+
 }

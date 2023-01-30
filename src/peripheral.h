@@ -13,6 +13,7 @@ typedef void (*InitHandler)(PeripheralInitInfo initInfo);
 typedef uint32_t (*ReadHandler)(uint16_t addr);
 typedef void (*WriteHandler)(uint16_t addr, uint32_t val);
 typedef void (*ResetHandler)();
+typedef void (*StateHandler)(SaveStater &s);
 
 struct Peripheral {
 	const char *name;
@@ -20,6 +21,7 @@ struct Peripheral {
 	ReadHandler regRead;
 	WriteHandler regWrite;
 	ResetHandler reset;
+	StateHandler state;
 };
 
 }

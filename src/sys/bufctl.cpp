@@ -97,10 +97,16 @@ void BUFCTLDeviceResetHandler() {
     r = 0;
 }
 
+void BUFCTLState(SaveStater &s) {
+  s.tag("BUFCTL");
+  s.a(bufctl_regs);
+}
+
 void InitBUFCTLDevice(PeripheralInitInfo initInfo) {}
 
 const Peripheral BUFCTLPeripheral = {"BUFCTL", InitBUFCTLDevice,
                                      BUFCTLDeviceReadHandler,
                                      BUFCTLDeviceWriteHandler,
-                                     BUFCTLDeviceResetHandler};
+                                     BUFCTLDeviceResetHandler,
+                                     BUFCTLState};
 }

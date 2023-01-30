@@ -290,6 +290,26 @@ void SDDeviceResetHandler() {
   sd_int_ctrl = 0;
 }
 
+void SDDeviceState(SaveStater &s) {
+  s.tag("SD");
+  SD_State(s);
+  s.i(sd_txbuf);
+  s.i(sd_status_reg);
+  s.i(sd_cmd_setup_reg);
+  s.i(sd_argument_reg);
+  s.i(sd_response_reg);
+  s.i(sd_mode_ctrl);
+  s.i(sd_int_ctrl);
+
+  s.i(sd_cmd_bytes_read);
+  s.i(sd_cmd_bytes_expected);
+
+  s.i(sd_dat_bytes_xfrd);
+  s.i(sd_dat_bytes_expected);
+  s.i(isMultiBlock);
+}
+
 const Peripheral SDPeripheral = {"SD", InitSDDevice, SDDeviceReadHandler,
-                                 SDDeviceWriteHandler, SDDeviceResetHandler};
+                                 SDDeviceWriteHandler, SDDeviceResetHandler,
+                                 SDDeviceState};
 }

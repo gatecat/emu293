@@ -261,10 +261,16 @@ void APBDMADeviceResetHandler() {
     r = 0;
 }
 
+void APBDMADeviceDeviceState(SaveStater &s) {
+  s.tag("APBDMA");
+  s.a(dma_regs);
+}
+
 void RegisterDMAHook(DMAHook hook) { hooks.push_back(hook); }
 
 const Peripheral APBDMAPeripheral = {"APBDMA", InitAPBDMADevice,
                                      APBDMADeviceReadHandler,
                                      APBDMADeviceWriteHandler,
-                                     APBDMADeviceResetHandler};
+                                     APBDMADeviceResetHandler,
+                                    APBDMADeviceDeviceState};
 }

@@ -231,11 +231,17 @@ namespace Emu293 {
 			r = 0;
 	}
 
+	void GPIODeviceState(SaveStater &s) {
+		s.tag("GPIO");
+		s.a(gpio_reg);
+	}
+
 	const Peripheral GPIOPeripheral = {
 			"GPIO",
 			InitGPIODevice,
 			GPIODeviceReadHandler,
 			GPIODeviceWriteHandler,
-			GPIODeviceResetHandler
+			GPIODeviceResetHandler,
+			GPIODeviceState
 	};
 }

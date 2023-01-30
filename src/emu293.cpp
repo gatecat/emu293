@@ -15,6 +15,11 @@
 #include <chrono>
 
 using namespace Emu293;
+
+static std::string state_file(int slot) {
+  return stringf("../roms/slot_%d.sav", slot);
+}
+
 int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -102,6 +107,19 @@ int main(int argc, char *argv[]) {
       }
       if (shutdown_flag) {
         break;
+      }
+      if (savestate_flag != -1 || loadstate_flag != -1) {
+        bool is_save = (savestate_flag != -1);
+        auto file = state_file(is_save ? savestate_flag : loadstate_flag);
+        SaveStater ss; 
+        is_save ? ss.begin_save(file) : ss.begin_load(file);
+        ss.i(icount);
+        system_state(ss);
+        ss.finalise();
+        printf("%s state %s slot %d\n", (is_save ? "Saved" : "Loaded"), (is_save ? "to" : "from"),
+          is_save ? savestate_flag : loadstate_flag);
+        savestate_flag = -1;
+        loadstate_flag = -1;
       }
     }
     // SDL_Delay(1);

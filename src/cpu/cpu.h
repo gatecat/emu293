@@ -174,6 +174,8 @@ public:
    */
   void interrupt(uint8_t cause);
 
+  void state(SaveStater &s);
+
 protected:
   void exec16(const Instruction16 &insn);
 

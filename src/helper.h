@@ -3,6 +3,7 @@
 #include <cstdarg>
 #include <stdio.h>
 #include <string>
+#include <fstream>
 using namespace std;
 
 //Useful macros
@@ -27,7 +28,8 @@ using namespace std;
 	#error "Big endian architectures not yet supported (sorry)"
 #endif
 
-
+// avoid pulling in zlib.h here
+typedef struct gzFile_s* gzFile;
 
 //General helper functions
 namespace Emu293 {
@@ -75,4 +77,45 @@ namespace Emu293 {
 
 	std::string stringf(const char *format, ...);
 	void write_bmp(std::string filename, int width, int height, uint32_t *data);
+
+	struct SaveStater {
+		gzFile f;
+		void begin_load(const std::string &file);
+		void begin_save(const std::string &file);
+		void finalise();
+
+		bool is_load = false;
+		uint8_t raw_r();
+		void raw_w(uint8_t b);
+
+		void tag(const std::string &tag);
+		template <typename T> void i(T& value) {
+			if (is_load) {
+				value = 0;
+				for (unsigned b = 0; b < sizeof(T); b++) {
+					value |= uint64_t(raw_r()) << (8U*b);
+				}
+			} else {
+				for (unsigned b = 0; b < sizeof(T); b++) {
+					raw_w((value >> (8*b)) & 0xFF);
+				}
+			}
+		}
+		template <typename T> void e(T& value) {
+			uint32_t tmp;
+			if (is_load) {
+				i(tmp);
+				value = T(tmp);
+			} else {
+				tmp = value;
+				i(tmp);
+			}
+		}
+		template <typename T, size_t N> void a(T(&value)[N]) {
+			for (unsigned idx = 0; idx < N; idx++) {
+				i(value[idx]);
+			}
+		};
+	};
+
 }

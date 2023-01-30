@@ -50,12 +50,18 @@ namespace Emu293 {
 			r = 0;
 	}
 
+	void CKGDeviceState(SaveStater &s) {
+		s.tag("CKG");
+		s.a(ckg_regs);
+	}
+
 	void InitCKGDevice(PeripheralInitInfo initInfo) {}
 
 	const Peripheral CKGPeripheral = {"CKG", InitCKGDevice,
 										 CKGDeviceReadHandler,
 										 CKGDeviceWriteHandler,
-										 CKGDeviceResetHandler};
+										 CKGDeviceResetHandler,
+										 CKGDeviceState};
 
 	uint32_t timer_regs[NTIMERS][TIMER_NREGS] = {0};
 
@@ -141,11 +147,19 @@ namespace Emu293 {
 				r = 0;
 	}
 
+	void TimerDeviceState(SaveStater &s) {
+		s.tag("TIMER");
+		s.i(div_count);
+		for (int i = 0; i < NTIMERS; i++)
+			s.a(timer_regs[i]);
+	}
+
 	const Peripheral TimerPeripheral = {
 			"TIMER",
 			InitTimerDevice,
 			TimerDeviceReadHandler,
 			TimerDeviceWriteHandler,
-			TimerDeviceResetHandler
+			TimerDeviceResetHandler,
+			TimerDeviceState
 	};
 }

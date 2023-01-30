@@ -930,6 +930,7 @@ static void PPUDebug() {
 }
 
 bool shutdown_flag = false;
+int savestate_flag = -1, loadstate_flag = -1;
 
 static void do_quit() {
   ShutdownPPU();
@@ -949,6 +950,14 @@ void PPUUpdate() {
           PPUDebug();
         if (e.key.keysym.scancode == SDL_SCANCODE_F4 && (e.key.keysym.mod & KMOD_ALT))
           do_quit();
+        if (e.key.keysym.scancode >= SDL_SCANCODE_1 && e.key.keysym.scancode <= SDL_SCANCODE_9) {
+          int slot = (e.key.keysym.scancode - SDL_SCANCODE_1) + 1;
+          if (e.key.keysym.mod & KMOD_ALT)
+            savestate_flag = slot;
+          else if (e.key.keysym.mod & KMOD_CTRL)
+            loadstate_flag = slot;
+        }
+
       }
     }
     IRGamepadEvent(&e);
@@ -990,6 +999,13 @@ void PPUDeviceResetHandler() {
     r = 0;
 }
 
+void PPUDeviceState(SaveStater &s) {
+  s.tag("PPU");
+  s.a(ppu_regs);
+  s.i(curr_line);
+}
+
 const Peripheral PPUPeripheral = {"PPU", InitPPUDevice, PPUDeviceReadHandler,
-                                  PPUDeviceWriteHandler, PPUDeviceResetHandler};
+                                  PPUDeviceWriteHandler, PPUDeviceResetHandler,
+                                  PPUDeviceState};
 }

@@ -100,6 +100,19 @@ void SetInterruptsEnabled(bool enable) {
     ProcessInterrupts();
   }
 }
+void InterruptState(SaveStater &s) {
+  s.tag("INT");
+  s.a(int_regs);
+  s.i(interruptsEnabled);
+  uint64_t tmp = 0;
+  if (s.is_load) {
+    s.i(tmp);
+    intsFired = std::bitset<64>(tmp);
+  } else {
+    tmp = intsFired.to_ullong();
+    s.i(tmp);
+  }
+}
 const Peripheral IRQPeripheral = {"PIC", InitIRQDevice, IRQDeviceReadHandler,
-                                  IRQDeviceWriteHandler, IRQDeviceResetHandler};
+                                  IRQDeviceWriteHandler, IRQDeviceResetHandler, InterruptState};
 }

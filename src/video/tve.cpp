@@ -67,6 +67,12 @@ void TVETick() {
   }
 }
 
+void TVEState(SaveStater &s) {
+  s.tag("TVE");
+  s.a(tve_regs);
+  s.i(tve_curr_line);
+}
+
 const Peripheral TVEPeripheral = {"TVE", InitTVEDevice, TVEDeviceReadHandler,
-                                  TVEDeviceWriteHandler, TVEDeviceResetHandler};
+                                  TVEDeviceWriteHandler, TVEDeviceResetHandler, TVEState};
 }

@@ -7,6 +7,8 @@ namespace Emu293 {
 
 	void system_softreset();
 
+	void system_state(SaveStater &s);
+
 	uint8_t read_memU8(uint32_t addr);
 	void write_memU8(uint32_t addr, uint8_t val);
 

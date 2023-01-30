@@ -17,4 +17,6 @@ namespace Emu293 {
 	void SD_Write(uint8_t *buf, int len);
 	//Read data from card
 	void SD_Read(uint8_t *buf, int len);
+	//SD card savestate handler
+	void SD_State(SaveStater &s);
 }

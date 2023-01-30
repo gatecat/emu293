@@ -33,6 +33,12 @@ player 2:
  - a, s: B, A
  - d: "motion"
 
+system:
+ - F9: soft reset
+ - alt+F4: quit
+ - alt+{1-9}: save state to slot 1-9
+ - ctrl+{1-9}: load state from slot 1-9
+
 (only enough player 2 controls are implemented for a few motion games that use both remotes).
 
 Known issues:
