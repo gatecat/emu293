@@ -6,6 +6,7 @@
 #include "sys/timer.h"
 #include "video/ppu.h"
 #include "video/tve.h"
+#include "video/webcam.h"
 #include "io/ir_gamepad.h"
 #include "audio/spu.h"
 
@@ -28,8 +29,20 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  int argidx = 1;
+  std::string webcam_dev;
+
+  while (true) {
+      if (strcmp(argv[argidx], "-cam") == 0) {
+        argidx++;
+        webcam_dev = std::string(argv[argidx++]);
+      } else {
+        break;
+      }
+  }
+
   uint32_t entryPoint;
-  entryPoint = LoadElfToRAM(argv[1]);
+  entryPoint = LoadElfToRAM(argv[argidx++]);
   if (entryPoint == 0) {
     printf("Failed to load ELF\n");
     return 1;
@@ -37,8 +50,12 @@ int main(int argc, char *argv[]) {
   printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
   InitPPUThreads();
   SPUInitSound();
-  if (!SD_InitCard(argv[2])) {
+  if (!SD_InitCard(argv[argidx++])) {
     printf("Failed to load SD card image\n");
+  }
+
+  if (!webcam_dev.empty()) {
+    webcam_init(webcam_dev);
   }
 
   CPU scoreCPU;
@@ -124,6 +141,7 @@ int main(int argc, char *argv[]) {
     }
     // SDL_Delay(1);
   }
+  webcam_stop();
   SDL_Quit();
   return 0;
 }

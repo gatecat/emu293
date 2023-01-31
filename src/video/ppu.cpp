@@ -3,6 +3,7 @@
 #include "../sys/irq_if.h"
 #include "../system.h"
 #include "../io/ir_gamepad.h"
+#include "csi.h"
 
 #include <SDL2/SDL.h>
 
@@ -992,6 +993,7 @@ void PPUTick() {
     PPUUpdate();
     render_done = false;
   }
+  CSITick(curr_line == 700);
 }
 
 void PPUDeviceResetHandler() {
