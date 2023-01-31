@@ -6,7 +6,7 @@ namespace Emu293 {
 extern const Peripheral CSIPeripheral;
 
 void CSITick(bool get_frame);
-void CSIStart();
-void CSIStop();
+void InitCSIThreads();
+void ShutdownCSI();
 
 }

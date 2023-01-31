@@ -7,6 +7,8 @@
 #include "video/ppu.h"
 #include "video/tve.h"
 #include "video/webcam.h"
+#include "video/csi.h"
+
 #include "io/ir_gamepad.h"
 #include "audio/spu.h"
 
@@ -50,6 +52,7 @@ int main(int argc, char *argv[]) {
   printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
   InitPPUThreads();
   SPUInitSound();
+  InitCSIThreads();
   if (!SD_InitCard(argv[argidx++])) {
     printf("Failed to load SD card image\n");
   }
@@ -141,6 +144,7 @@ int main(int argc, char *argv[]) {
     }
     // SDL_Delay(1);
   }
+  ShutdownCSI();
   webcam_stop();
   SDL_Quit();
   return 0;

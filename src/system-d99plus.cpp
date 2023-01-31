@@ -16,6 +16,8 @@
 #include "system.h"
 #include "video/ppu.h"
 #include "video/tve.h"
+#include "video/csi.h"
+
 #include <cstdio>
 #include <cstdlib>
 using namespace std;
@@ -200,6 +202,8 @@ void system_init(CPU *cpu) {
   registerPeripheral(&TVEPeripheral, 0x03);
   registerPeripheral(&BUFCTLPeripheral, 0x09);
   registerPeripheral(&MIUPeripheral, 0x07);
+
+  registerPeripheral(&CSIPeripheral, 0x00);
 
   registerPeripheral(&SPUPeripheral, 0x05);
   registerPeripheral(&I2CPeripheral, 0x13);

@@ -2,6 +2,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <linux/videodev2.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -21,7 +22,6 @@ namespace {
 
     int cam_fd = -1;
     struct v4l2_format fmt = {};
-    fd_set cam_fds;
     std::vector<struct buffer> buffers;
 
     const int out_w = 640, out_h = 480;
@@ -104,5 +104,51 @@ void webcam_stop() {
     for (auto &buf : buffers)
         v4l2_munmap(buf.start, buf.length);
     v4l2_close(cam_fd);
+}
+
+static void rgb888to565(uint8_t *in, uint8_t *out) {
+    uint8_t r = in[0], g = in[1], b = in[2];
+    r >>= 3;
+    g >>= 2;
+    b >>= 3;
+    uint16_t result = ((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F);
+    *(reinterpret_cast<uint16_t*>(out))=result;
+}
+
+bool webcam_grab_frame_rgb565(uint8_t *out, int w, int h) {
+    if (cam_fd == -1)
+        return false;
+    int r = 0;
+    struct timeval tv = {};
+    fd_set cam_fds;
+    do {
+        FD_ZERO(&cam_fds);
+        FD_SET(cam_fd, &cam_fds);
+
+        /* Timeout. */
+        tv.tv_sec = 2;
+        tv.tv_usec = 0;
+
+        r = select(cam_fd + 1, &cam_fds, NULL, NULL, &tv);
+    } while ((r == -1 && (errno == EINTR)));
+    if (r == -1) {
+        perror("select");
+        return errno;
+    }
+    struct v4l2_buffer buf = {};
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    xioctl(cam_fd, VIDIOC_DQBUF, &buf);
+    for (int oy = 0; oy < h; oy++) {
+        for (int ox = 0; ox < w; ox++) {
+            if (oy >= fmt.fmt.pix.height || ox >= fmt.fmt.pix.width)
+                continue;
+            int pix_idx = (oy * fmt.fmt.pix.width + ox) * 3;
+            int out_idx = ((((h - 1) - oy)  * w) + ((w-1)-ox)) * 2;
+            rgb888to565(reinterpret_cast<uint8_t*>(buffers[buf.index].start) + pix_idx, out + out_idx);
+        }
+    }
+    xioctl(cam_fd, VIDIOC_QBUF, &buf);
+    return true;
 }
 }
