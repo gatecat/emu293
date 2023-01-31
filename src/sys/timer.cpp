@@ -55,6 +55,10 @@ namespace Emu293 {
 		s.a(ckg_regs);
 	}
 
+	bool get_clock_enable(uint32_t offset) {
+		return ckg_regs[offset/4] & 0x1;
+	}
+
 	void InitCKGDevice(PeripheralInitInfo initInfo) {}
 
 	const Peripheral CKGPeripheral = {"CKG", InitCKGDevice,

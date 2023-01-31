@@ -2,6 +2,7 @@
 #include "webcam.h"
 #include "../system.h"
 #include "../sys/irq_if.h"
+#include "../sys/timer.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -141,7 +142,13 @@ void CSITick(bool get_frame) {
         do_capture_cv.notify_one();
     } else if (csi_frame_done) {
       // raise IRQ in main thread, not CSI thread
-      if (check_bit(csi_regs[csi_tg_irqen], 2)) { // FRAME_END
+      // we need to check the clock is still enabled, because A21 rom.elf will shut off the camera
+      // by stopping clock/asserting reset in the CKG before handing off to a non-camera app.
+      // if we fired an interrupt after that, we would crash whatever we entered as it wouldn't handle
+      // the CSI IRQ
+      if (check_bit(csi_regs[csi_tg_cr], csi_tg_cr_csien) &&
+            check_bit(csi_regs[csi_tg_irqen], 2) &&
+            get_clock_enable(0x18)) { // FRAME_END
         set_bit(csi_regs[csi_tg_irqst], 2);
         SetIRQState(csi_end_irq, true);
       }
