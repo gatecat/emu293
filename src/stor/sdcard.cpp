@@ -437,14 +437,14 @@ void SD_Write(uint8_t *buf, int len) {
   if (currentState == SD_STATE_RECV) {
     uint8_t *tempbuf = new uint8_t[len];
     copy(buf, buf + len, tempbuf);
-    // int bytes = pwrite(imgfd, (void *)tempbuf, len, offset);
-    int bytes = len; // don't actually touch image....
+    int bytes = pwrite(imgfd, (void *)tempbuf, len, offset);
+    // int bytes = len; // don't actually touch image....
     delete[] tempbuf;
     bytecount += bytes;
     offset += bytes;
-    /*if(bytecount != len) {
-            printf("SD Error: write failed\n");
-    }*/
+    if(bytecount != len) {
+      printf("SD Error: write failed\n");
+    }
     if ((!expectingMultiBlock) && (bytecount >= blocklen)) {
       currentState = SD_STATE_TRANS;
     }
