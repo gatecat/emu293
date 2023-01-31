@@ -9,6 +9,8 @@
 #include "sys/irq.h"
 #include "sys/miu.h"
 #include "sys/timer.h"
+#include "sys/i2c.h"
+
 #include "audio/spu.h"
 
 #include "system.h"
@@ -200,6 +202,7 @@ void system_init(CPU *cpu) {
   registerPeripheral(&MIUPeripheral, 0x07);
 
   registerPeripheral(&SPUPeripheral, 0x05);
+  registerPeripheral(&I2CPeripheral, 0x13);
 
   registerPeripheral(&SDPeripheral, 0x18);
   // write_memU32(0x9F000040, 0x00434150);
