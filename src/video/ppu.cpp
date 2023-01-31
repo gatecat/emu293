@@ -335,7 +335,7 @@ static void MergeTextLayer(int layerNo) {
           continue;
         if (blnden) {
           BlendCustomFormatToSurface(
-              textLayers[layerNo][ty][tx], alpha,
+              textLayers[layerNo][ty][tx] | 0x40000000, alpha,
               rendered[y][x]);
 
         } else {
