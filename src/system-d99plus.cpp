@@ -53,7 +53,7 @@ uint8_t read_memU8(uint32_t addr) {
       // printf("Read8 from uninit memory location 0x%08x\n", addr);
     return ram[addr - RAM_START];
   } else {
-    printf("Read8 from unmapped memory location 0x%08x\n", addr);
+    printf("Read8 from unmapped memory location 0x%08x at %08x\n", addr, currentCPU->pc);
     // currentCPU->debugDump();
 
     return 0;
@@ -135,8 +135,8 @@ uint32_t read_memU32(uint32_t addr) {
       return 0;
     }
   } else {
-    printf("Read32 from unmapped memory location 0x%08x at 0x%08x\n", addr,
-           currentCPU->pc);
+    /*printf("Read32 from unmapped memory location 0x%08x at 0x%08x\n", addr,
+           currentCPU->pc);*/
     // currentCPU->debugDump();
     if (currentCPU->pc == addr)
       currentCPU->debugDump();

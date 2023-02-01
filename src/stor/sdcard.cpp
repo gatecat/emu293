@@ -87,8 +87,8 @@ static int cmdRespBufPtr = 0;
 const uint32_t defCardStatus = 0x00000100;
 static uint32_t currentCardStatus = defCardStatus;
 
-static uint32_t eraseBegin = 0;
-static uint32_t eraseEnd = 0;
+static uint64_t eraseBegin = 0;
+static uint64_t eraseEnd = 0;
 static bool readingScr = false;
 const uint8_t cardStatus_outOfRange = 31;
 const uint8_t cardStatus_addressErr = 30;
@@ -393,12 +393,12 @@ void SD_Command(uint8_t command, uint32_t argument) {
     case ERASE:
       if (currentState == SD_STATE_TRANS) {
         vector<uint8_t> buf(blocklen, 0xFF);
-        for (uint32_t i = eraseBegin; i <= eraseEnd; i += blocklen) {
+        for (uint64_t i = eraseBegin; i <= eraseEnd; i += blocklen) {
           if ((i + blocklen) > cardsize) {
             set_bit(currentCardStatus, cardStatus_outOfRange);
             break;
           } else {
-            pwrite(imgfd, (void *)(&(buf[0])), blocklen, i);
+            pwrite64(imgfd, (void *)(&(buf[0])), blocklen, i);
           }
         }
       } else {
@@ -437,7 +437,7 @@ void SD_Write(uint8_t *buf, int len) {
   if (currentState == SD_STATE_RECV) {
     uint8_t *tempbuf = new uint8_t[len];
     copy(buf, buf + len, tempbuf);
-    int bytes = pwrite(imgfd, (void *)tempbuf, len, offset);
+    int bytes = pwrite64(imgfd, (void *)tempbuf, len, offset);
     // int bytes = len; // don't actually touch image....
     delete[] tempbuf;
     bytecount += bytes;
@@ -468,7 +468,7 @@ void SD_Read(uint8_t *buf, int len) {
   } else {
     if (currentState == SD_STATE_SEND) {
       uint8_t *tempbuf = new uint8_t[len];
-      int bytesread = pread(imgfd, tempbuf, len, offset);
+      int bytesread = pread64(imgfd, tempbuf, len, offset);
       copy(tempbuf, tempbuf + len, buf);
       delete[] tempbuf;
       // int errorcode = errno;

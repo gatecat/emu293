@@ -427,8 +427,6 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   uint8_t *ramBuf =
       memptr +
       (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
-  uint8_t *datbuf =
-        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
   // always use attribute array in bitmap mode???
   /* uint16_t attr = ramBuf[lheight * 4 + line * 2] |
                   (uint16_t(ramBuf[lheight * 4 + line * 2 + 1]) << 8);*/
@@ -440,12 +438,12 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
   }
   uint32_t lineBegin;
   if (bpp == 16) {
-    lineBegin = get_uint32le(&(ramBuf[line * 4]));
+    lineBegin = get_uint32le(&(ramBuf[line * 4])) & 0x3FFFFF;
   } else {
     lineBegin = line * lwidth;
   }
   int bank = get_bits(attr, 8, 5);
-  uint8_t *linebuf = datbuf + ((lineBegin * (bpp / 8)) & 0x01FFFFFF);
+  uint8_t *linebuf = memptr + ((ppu_regs[ppu_text_databufptrs[layerNo][0]] + (lineBegin * (bpp / 8))) & 0x01FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
 }
 
