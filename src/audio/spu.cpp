@@ -2,6 +2,7 @@
 #include "okiadpcm.h"
 
 #include "../system.h"
+#include "../sys/irq_if.h"
 
 #include <stdio.h>
 #include <SDL2/SDL.h>
@@ -21,6 +22,20 @@ void InitSPUDevice(PeripheralInitInfo initInfo) {
 const int chen = 0x0400;
 const int chsts = 0x040F;
 const int spu_bank = 0x041F;
+
+const int spu_softch_ctrl = 0x0422;
+const int spu_softch_compctrl = 0x0419;
+const int spu_softch_basel = 0x0420;
+const int spu_softch_baseh = 0x0421;
+const int spu_softch_ptr = 0x042C;
+
+const int spu_softch_ctrl_irqst = 15;
+const int spu_softch_ctrl_irqen = 14;
+
+const int spu_ctrl = 0x040D;
+const int spu_ctrl_softch_en = 12;
+
+const int spu_softch_irq = 0x3f;
 
 const int uoffset = 0x0100;
 
@@ -240,9 +255,46 @@ end_of_data:
   // TODO: envelope, repeat, non-ADPCM, etc
 }
 
+static float spu_rate_conv = 0;
+static float softch_phase = 0;
+
+static int softch_buf_size(int size) {
+  int lo = size & (0x3);
+  int hi = (size >> 3) & 0x1;
+  return 0x100 * (1<<(lo|(hi << 2)));
+}
+
+void tick_softch() {
+  if (!check_bit(spu_regs[spu_ctrl], spu_ctrl_softch_en))
+    return;
+  // softch freq is in 1/27MHz units; we run at 281.25kHz
+  softch_phase += 96.f / float(spu_regs[spu_softch_compctrl] & 0xFFFF);
+  if (softch_phase < 1.f)
+    return;
+  // an actual tick....
+  softch_phase -= 1.f;
+  int ctrl = spu_regs[spu_softch_ctrl];
+  int half_size = softch_buf_size(ctrl & 0xF);
+  bool stereo = (ctrl & 0x4);
+  // TODO: what unit is buf_size in, probably samples...
+  uint32_t ptr = spu_regs[spu_softch_ptr];
+  // TODO: actual fetch and play...
+  uint32_t next_ptr = (ptr + 1) % (2*half_size);
+  // trigger fiq per half size?
+  if ((next_ptr ^ ptr) & (half_size)) {
+    // IRQ (called a FIQ in some places but how does it differ?)
+    if (check_bit(ctrl, spu_softch_ctrl_irqen)) {
+      SetIRQState(spu_softch_irq, true);
+      set_bit(spu_regs[spu_softch_ctrl], spu_softch_ctrl_irqst);
+    }
+  }
+  spu_regs[spu_softch_ptr] = next_ptr;
+}
+
 static void spu_tick() {
   for (int ch = 0; ch < 24; ch++)
     tick_channel(ch);
+  tick_softch();
 }
 
 static void spu_mix_channels(int16_t &l, int16_t &r) {
@@ -278,6 +330,12 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
   r = std::min<int32_t>(std::max<int32_t>(-32767, rm), 32767);
 }
 
+void start_softch() {
+  spu_regs[spu_softch_ptr] = 0; // reset pointer
+  softch_phase = 0;
+}
+
+
 void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
   // printf("SPU write %04x %08x\n", addr, val);
   addr /= 4;
@@ -292,8 +350,18 @@ void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
         stop_channel(i + ((addr & uoffset) ? 16 : 0));
       }
     }
+  } else if (addr == spu_ctrl) {
+    if (check_bit(val, spu_ctrl_softch_en) && !check_bit(spu_regs[addr], spu_ctrl_softch_en)) {
+      start_softch();
+    }
   }
   spu_regs[addr] = val;
+  if (addr == spu_softch_ctrl) {
+    if (check_bit(val, spu_softch_ctrl_irqst)) {
+      clear_bit(spu_regs[addr], spu_softch_ctrl_irqst);
+      SetIRQState(spu_softch_irq, false);
+    }
+  }
 }
 
 uint32_t SPUDeviceReadHandler(uint16_t addr) {
@@ -336,7 +404,6 @@ static int64_t update_t = 0;
 static int ticks = 0;
 static int samps = 0;
 
-static float spu_rate_conv = 0;
 
 void SPUUpdate() {
   int64_t curr_time = spu_time();
