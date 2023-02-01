@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
   }
 
   uint32_t entryPoint;
-  entryPoint = LoadElfToRAM(argv[argidx++]);
+  const char *elf = argv[argidx++];
+  entryPoint = LoadElfToRAM(elf);
   if (entryPoint == 0) {
     printf("Failed to load ELF\n");
     return 1;
@@ -121,7 +122,7 @@ int main(int argc, char *argv[]) {
       }
       if (softreset_flag) {
         system_softreset();
-        entryPoint = LoadElfToRAM(argv[1]);
+        entryPoint = LoadElfToRAM(elf);
         scoreCPU.pc = entryPoint;
         softreset_flag = false;
       }
@@ -132,12 +133,13 @@ int main(int argc, char *argv[]) {
         bool is_save = (savestate_flag != -1);
         auto file = state_file(is_save ? savestate_flag : loadstate_flag);
         SaveStater ss; 
-        is_save ? ss.begin_save(file) : ss.begin_load(file);
-        ss.i(icount);
-        system_state(ss);
-        ss.finalise();
-        printf("%s state %s slot %d\n", (is_save ? "Saved" : "Loaded"), (is_save ? "to" : "from"),
-          is_save ? savestate_flag : loadstate_flag);
+        if(!is_save ? ss.begin_save(file) : ss.begin_load(file)) {
+          ss.i(icount);
+          system_state(ss);
+          ss.finalise();
+          printf("%s state %s slot %d\n", (is_save ? "Saved" : "Loaded"), (is_save ? "to" : "from"),
+            is_save ? savestate_flag : loadstate_flag);
+        }
         savestate_flag = -1;
         loadstate_flag = -1;
       }

@@ -96,24 +96,25 @@ namespace Emu293 {
         delete[] linebuf;
     }
 
-    void SaveStater::begin_load(const std::string &file) {
+    bool SaveStater::begin_load(const std::string &file) {
         is_load = true;
         f = gzopen(file.c_str(), "rb");
         if (!f) {
             printf("failed to open savestate file %s for load\n", file.c_str());
-            exit(1);
+            return false;
         }
         tag("SAVESTATE_00000");
-
+        return true;
     }
-    void SaveStater::begin_save(const std::string &file) {
+    bool SaveStater::begin_save(const std::string &file) {
         is_load = false;
         f = gzopen(file.c_str(), "wb");
         if (!f) {
             printf("failed to open savestate file %s for save: \n", file.c_str());
-            exit(1);
+            return false;
         }
         tag("SAVESTATE_00000");
+        return true;
     }
     void SaveStater::finalise() {
         gzclose(f);

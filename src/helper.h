@@ -80,8 +80,8 @@ namespace Emu293 {
 
 	struct SaveStater {
 		gzFile f;
-		void begin_load(const std::string &file);
-		void begin_save(const std::string &file);
+		bool begin_load(const std::string &file);
+		bool begin_save(const std::string &file);
 		void finalise();
 
 		bool is_load = false;
