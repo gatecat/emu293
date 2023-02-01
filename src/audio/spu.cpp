@@ -257,6 +257,7 @@ end_of_data:
 
 static float spu_rate_conv = 0;
 static float softch_phase = 0;
+static int16_t softch_l, softch_r;
 
 static int softch_buf_size(int size) {
   int lo = size & (0x3);
@@ -274,10 +275,18 @@ void tick_softch() {
   // an actual tick....
   softch_phase -= 1.f;
   int ctrl = spu_regs[spu_softch_ctrl];
-  int half_size = softch_buf_size(ctrl & 0xF);
+  uint32_t base = (spu_regs[spu_softch_baseh] << 16) | (spu_regs[spu_softch_basel] & 0xFFFF);
+  int half_size = softch_buf_size(ctrl & 0xF) / 2;
   bool stereo = (ctrl & 0x4);
   // TODO: what unit is buf_size in, probably samples...
   uint32_t ptr = spu_regs[spu_softch_ptr];
+  uint32_t idx = base + ptr * (stereo ? 4 : 2);
+  softch_l = int16_t(get_uint16le(memptr + (idx & 0x01FFFFFE)) ^ 0x8000);
+  if (stereo) {
+    softch_r = int16_t(get_uint16le(memptr + ((idx + 2) & 0x01FFFFFE)) ^ 0x8000);
+  } else {
+    softch_r = softch_l;
+  }
   // TODO: actual fetch and play...
   uint32_t next_ptr = (ptr + 1) % (2*half_size);
   // trigger fiq per half size?
@@ -324,6 +333,10 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
     lm += int32_t(spu_channels[ch].iirl);
     rm += int32_t(spu_channels[ch].iirr);
   }
+  if (check_bit(spu_regs[spu_ctrl], spu_ctrl_softch_en)) {
+    lm += int32_t(softch_l);
+    rm += int32_t(softch_r);
+  }
   lm /= 8;
   rm /= 8;
   l = std::min<int32_t>(std::max<int32_t>(-32767, lm), 32767);
@@ -333,6 +346,8 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
 void start_softch() {
   spu_regs[spu_softch_ptr] = 0; // reset pointer
   softch_phase = 0;
+  softch_l = 0;
+  softch_r = 0;
 }
 
 

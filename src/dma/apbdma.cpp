@@ -209,7 +209,7 @@ void InitAPBDMADevice(PeripheralInitInfo initInfo) {
 
 uint32_t APBDMADeviceReadHandler(uint16_t addr) {
   if ((addr / 4) < dma_nregs) {
-    printf("APBDMA read %04x = %08x\n", addr, uint32_t(dma_regs[addr / 4]));
+    // printf("APBDMA read %04x = %08x\n", addr, uint32_t(dma_regs[addr / 4]));
     return dma_regs[addr / 4];
   } else {
     printf("APBDMA read error: address 0x%04x out of range\n", addr);
@@ -219,7 +219,7 @@ uint32_t APBDMADeviceReadHandler(uint16_t addr) {
 
 void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
   // addr %= 0x190; //not sure about this...
-  printf("APBDMA write : 0x%04x=0x%08x\n", addr, val);
+  // printf("APBDMA write : 0x%04x=0x%08x\n", addr, val);
   addr /= 4;
 
   if (addr == dma_irq_sts) {
@@ -244,7 +244,7 @@ void APBDMADeviceWriteHandler(uint16_t addr, uint32_t val) {
         if (check_bit(val, dma_set_mem)) {
           printf("FIXME: APBDMA double buffer mode not supported.\n");
         } else {
-          printf("APBDMA begin (ahb = 0x%08x)!\n", uint32_t(dma_regs[dma_ahb_start_a + chn]));
+          // printf("APBDMA begin (ahb = 0x%08x)!\n", uint32_t(dma_regs[dma_ahb_start_a + chn]));
           set_bit(dma_regs[dma_busy_sts], chn);
           apbdma_work(chn);
         }

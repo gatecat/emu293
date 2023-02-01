@@ -208,7 +208,7 @@ static void beginWrite(uint32_t addr) {
 }
 
 void SD_Command(uint8_t command, uint32_t argument) {
-  printf("SD cmd %d arg=0x%08x\n", command, argument);
+  // printf("SD cmd %d arg=0x%08x\n", command, argument);
   if (currentState == SD_STATE_INACTIVE)
     return;
   using namespace CMD;
@@ -367,12 +367,12 @@ void SD_Command(uint8_t command, uint32_t argument) {
       sendR1();
     } break;
     case READ_SINGLE_BLOCK:
-        printf("read single!!\n");
+      // printf("read single!!\n");
       expectingMultiBlock = false;
       beginRead(argument);
       break;
     case READ_MULTIPLE_BLOCK:
-        printf("read multi!!\n");
+      // printf("read multi!!\n");
       expectingMultiBlock = true;
       beginRead(argument);
       break;
@@ -454,7 +454,7 @@ void SD_Write(uint8_t *buf, int len) {
 }
 
 void SD_Read(uint8_t *buf, int len) {
-  printf("SD: reading %d bytes.\n", len);
+  // printf("SD: reading %d bytes.\n", len);
 
   if (readingScr) {
     for (int i = 0; i < len; i++) {
