@@ -84,6 +84,8 @@ static condition_variable do_capture_cv;
 static mutex do_capture_m;
 static thread csi_thread;
 
+static int16_t csi_frame_tmp[640*480];
+
 void csi_copy_frame() {
     uint32_t cr = csi_regs[csi_tg_cr];
     if (!check_bit(cr, csi_tg_cr_csien))
@@ -98,9 +100,15 @@ void csi_copy_frame() {
     }
     // TODO: buffer flipping
     // TODO: YUV, etc etc
-    uint32_t baseaddr = csi_regs[csi_tg_fbaddr1];
-    uint8_t *ptr = (memptr + (baseaddr & 0x01FFFFFE));
-    webcam_grab_frame_rgb565(ptr, w, h);
+
+    webcam_grab_frame_rgb565(reinterpret_cast<uint8_t*>(csi_frame_tmp), w, h);
+    // use temp buf first, in case grabbing frame was slow and addr or
+    // enablement changed and we overwrite something useful in the meantime
+    if (check_bit(cr, csi_tg_cr_csien)) {
+      uint32_t baseaddr = csi_regs[csi_tg_fbaddr1];
+      uint8_t *ptr = (memptr + (baseaddr & 0x01FFFFFE));
+      std::copy(csi_frame_tmp, csi_frame_tmp+(w*h), reinterpret_cast<uint16_t*>(ptr));
+    }
     // TODO: frame end interrupt
 }
 
