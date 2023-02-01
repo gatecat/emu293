@@ -74,6 +74,10 @@ int main(int argc, char *argv[]) {
   write_memU32(0xFFFFFFEC, 1);
   int icount = 0;
   auto start = std::chrono::steady_clock::now();
+  int64_t t32k_rate = 1000000000/32768;
+  int64_t t32k_next = std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count()
+    + t32k_rate;
+
   while (1) {
     scoreCPU.step();
     icount++;
@@ -89,11 +93,6 @@ int main(int argc, char *argv[]) {
 
     if ((icount % 200) == 0) {
       SPUUpdate();
-    }
-
-    if ((icount % 5000) == 0) {
-      TimerTick(true); // 32kHz
-      // SDL_Delay(1);
     }
 
 
@@ -112,7 +111,14 @@ int main(int argc, char *argv[]) {
     if ((icount % 100) == 0) {
       fflush(stdout);
       auto t = std::chrono::steady_clock::now();
+      int64_t t_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t.time_since_epoch()).count();
       auto delta = std::chrono::duration<float>(t - start).count();
+
+      if (t_ns >= t32k_next) {
+        TimerTick(true); // 32kHz
+        t32k_next = std::max(t_ns+t32k_rate/2, t32k_next+t32k_rate);
+      }
+
       if (delta > 1) {
         printf("%.02fMIPS\n", (icount / 1000000.0) /
                                   delta);
