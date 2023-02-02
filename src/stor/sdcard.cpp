@@ -442,7 +442,7 @@ void SD_Write(uint8_t *buf, int len) {
     delete[] tempbuf;
     bytecount += bytes;
     offset += bytes;
-    if(bytecount != len) {
+    if(bytes != len) {
       printf("SD Error: write failed\n");
     }
     if ((!expectingMultiBlock) && (bytecount >= blocklen)) {
