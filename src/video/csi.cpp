@@ -86,6 +86,14 @@ static thread csi_thread;
 
 static int16_t csi_frame_tmp[640*480];
 
+inline bool csi_enabled() {
+  // we need to check the clock is still enabled, because A21 rom.elf will shut off the camera
+  // by stopping clock/asserting reset in the CKG before handing off to a non-camera app.
+  // if we fired an interrupt after that, we would crash whatever we entered as it wouldn't handle
+  // the CSI IRQ
+  return get_clock_enable(0x18) && check_bit(csi_regs[csi_tg_cr], csi_tg_cr_csien);
+}
+
 void csi_copy_frame() {
     uint32_t cr = csi_regs[csi_tg_cr];
     if (!check_bit(cr, csi_tg_cr_csien))
@@ -104,7 +112,7 @@ void csi_copy_frame() {
     webcam_grab_frame_rgb565(reinterpret_cast<uint8_t*>(csi_frame_tmp), w, h);
     // use temp buf first, in case grabbing frame was slow and addr or
     // enablement changed and we overwrite something useful in the meantime
-    if (check_bit(cr, csi_tg_cr_csien)) {
+    if (csi_enabled()) {
       uint32_t baseaddr = csi_regs[csi_tg_fbaddr1];
       uint8_t *ptr = (memptr + (baseaddr & 0x01FFFFFE));
       std::copy(csi_frame_tmp, csi_frame_tmp+(w*h), reinterpret_cast<uint16_t*>(ptr));
@@ -141,7 +149,7 @@ void ShutdownCSI() {
 }
 
 void CSITick(bool get_frame) {
-    if (get_frame && !csi_frame_need) {
+    if (get_frame && !csi_frame_need && csi_enabled()) {
         {
           lock_guard<mutex> lk(do_capture_m);
           csi_frame_need = true;
@@ -150,13 +158,8 @@ void CSITick(bool get_frame) {
         do_capture_cv.notify_one();
     } else if (csi_frame_done) {
       // raise IRQ in main thread, not CSI thread
-      // we need to check the clock is still enabled, because A21 rom.elf will shut off the camera
-      // by stopping clock/asserting reset in the CKG before handing off to a non-camera app.
-      // if we fired an interrupt after that, we would crash whatever we entered as it wouldn't handle
-      // the CSI IRQ
-      if (check_bit(csi_regs[csi_tg_cr], csi_tg_cr_csien) &&
-            check_bit(csi_regs[csi_tg_irqen], 2) &&
-            get_clock_enable(0x18)) { // FRAME_END
+      if (csi_enabled() &&
+            check_bit(csi_regs[csi_tg_irqen], 2)) { // FRAME_END
         set_bit(csi_regs[csi_tg_irqst], 2);
         SetIRQState(csi_end_irq, true);
       }
