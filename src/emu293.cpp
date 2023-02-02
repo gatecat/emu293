@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
         bool is_save = (savestate_flag != -1);
         auto file = state_file(is_save ? savestate_flag : loadstate_flag);
         SaveStater ss; 
-        if(!is_save ? ss.begin_save(file) : ss.begin_load(file)) {
+        if(is_save ? ss.begin_save(file) : ss.begin_load(file)) {
           ss.i(icount);
           system_state(ss);
           ss.finalise();

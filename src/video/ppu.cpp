@@ -255,17 +255,24 @@ static void TransformRZ(int x0, int y0, int &x1, int &y1, int entry, int w, int 
   y1 = h/2 + (x0 * hy + y0 * vy) / 1024;
 }
 
+inline static void ppu_layer_size(int &w, int &h) {
+  if (ppu_regs[ppu_newmode] & 0x1) {
+    w = 1024;
+    h = 1024;
+  } else if (ppu_regs[ppu_regs[ppu_control] & 0x03] & 0x1) {
+    w = 1024;
+    h = 512;
+  } else {
+    w = 512;
+    h = 256;
+  }
+}
+
 static void MergeTextLayer(int layerNo) {
   int swidth = ppu_screen_width[ppu_regs[ppu_control] & 0x03];
   int sheight = ppu_screen_height[ppu_regs[ppu_control] & 0x03];
-  int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
-  int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
-
-  if (ppu_regs[ppu_newmode] & 0x1 && lwidth == 512) {
-    // not sure if this is the correct gate here...
-    lwidth = 1024;
-    lheight = 1024;
-  }
+  int lwidth = 0, lheight = 0;
+  ppu_layer_size(lwidth, lheight);
 
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
   bool roen = check_bit(ctrl, ppu_tctrl_roen);
@@ -421,8 +428,9 @@ static inline void RAMToCustomFormat(uint8_t *ram, uint32_t *out, int count,
 static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
                                  int line, int layerNo, uint32_t *out) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
-  int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
-  int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
+  int lwidth = 0, lheight = 0;
+
+  ppu_layer_size(lwidth, lheight);
 
   uint8_t *ramBuf =
       memptr +
@@ -539,14 +547,8 @@ static void RenderTextLayer(int layerNo) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
   // printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
-  int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
-  int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
-
-  if (ppu_regs[ppu_newmode] & 0x1 && lwidth == 512) {
-    // not sure if this is the correct gate here...
-    lwidth = 1024;
-    lheight = 1024;
-  }
+  int lwidth = 0, lheight = 0;
+  ppu_layer_size(lwidth, lheight);
 
   bool rgb565 = false, argb1555 = false;
   if (check_bit(ctrl, ppu_tctrl_rgb555)) {
@@ -788,8 +790,8 @@ static void PPUDebugTextLayer(int layerNo) {
   uint32_t attr = ppu_regs[ppu_text_begin[layerNo] + ppu_text_attr];
   uint32_t ctrl = ppu_regs[ppu_text_begin[layerNo] + ppu_text_ctrl];
   // printf("layer %d attr %08x ctrl %08x\n", layerNo, attr, ctrl);
-  int lwidth = ppu_layer_width[ppu_regs[ppu_control] & 0x03];
-  int lheight = ppu_layer_height[ppu_regs[ppu_control] & 0x03];
+  int lwidth = 0, lheight = 0;
+  ppu_layer_size(lwidth, lheight);
 
   bool rgb565 = false, argb1555 = false;
   if (check_bit(ctrl, ppu_tctrl_rgb555)) {
