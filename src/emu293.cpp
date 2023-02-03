@@ -23,11 +23,6 @@ static std::string state_file(int slot) {
   return stringf("../roms/slot_%d.sav", slot);
 }
 
-int64_t hsync_rate() {
-  int fps = TVEIsPAL()  ? 50 : 60;
-  return 1000000000 / (80 * fps);
-}
-
 int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -80,10 +75,8 @@ int main(int argc, char *argv[]) {
   int icount = 0;
   auto start = std::chrono::steady_clock::now();
   int64_t t32k_rate = 1000000000/32768;
-  int64_t start_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count();
-  int64_t t32k_next = start_ns + t32k_rate;
-  int64_t hsync_next = start_ns + hsync_rate();
-  int64_t tve_next = hsync_next - hsync_rate() / 4;
+  int64_t t32k_next = std::chrono::duration_cast<std::chrono::nanoseconds>(start.time_since_epoch()).count()
+    + t32k_rate;
 
   while (1) {
     scoreCPU.step();
@@ -102,19 +95,17 @@ int main(int argc, char *argv[]) {
       SPUUpdate();
     }
 
-    if ((icount % 200) == 150) {
-      auto t = std::chrono::steady_clock::now();
-      int64_t t_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t.time_since_epoch()).count();
-      if (t_ns >= hsync_next) {
-        for (int i = 0; i <= ((t_ns - hsync_next) / hsync_rate()); i++)
-          PPUTick();
-        hsync_next = std::max(t_ns+hsync_rate()/2, hsync_next+hsync_rate());
-        tve_next = hsync_next - hsync_rate() / 4;
-      } else if (t_ns >= tve_next)  {
-        for (int i = 0; i <= ((t_ns - tve_next) / hsync_rate()); i++)
-          TVETick();
-        tve_next = tve_next + hsync_rate();
-      }
+
+    if ((icount % 2000) == 1000) {
+      PPUTick();
+
+      // SDL_Delay(1);
+    }
+
+    if ((icount % 2000) == 1500) {
+      TVETick();
+
+      // SDL_Delay(1);
     }
 
     if ((icount % 100) == 0) {
@@ -124,8 +115,7 @@ int main(int argc, char *argv[]) {
       auto delta = std::chrono::duration<float>(t - start).count();
 
       if (t_ns >= t32k_next) {
-        for (int i = 0; i <= ((t_ns - t32k_next) / t32k_rate); i++)
-          TimerTick(true); // 32kHz
+        TimerTick(true); // 32kHz
         t32k_next = std::max(t_ns+t32k_rate/2, t32k_next+t32k_rate);
       }
 

@@ -144,7 +144,7 @@ void CPU::step() {
   }
 #endif
 
-  if (pc <= 0xa0000000) {
+  if (pc <= 0x01000000) {
     printf("%08x -> %08x\n", lastpc, pc);
     debugDump(false);
   }

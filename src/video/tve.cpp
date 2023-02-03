@@ -7,9 +7,6 @@ using namespace std;
 
 namespace Emu293 {
 const uint8_t tve_vblank_int = 55;
-const int tve_regs_ctrl = 0x00;
-const int tve_regs_ctrl_pal = 1;
-
 const int tve_regs_size = 0x12;
 const int tve_irq_ctrl = 0x10;
 const int tve_irq_status = 0x11;
@@ -43,30 +40,23 @@ uint32_t TVEDeviceReadHandler(uint16_t addr) {
     return 0;
   }
 }
-uint16_t tve_curr_line = 10;
+uint16_t tve_curr_line = 100;
 
 void TVEDeviceResetHandler() {
   for (auto &r : tve_regs)
     r = 0;
 }
 
-void InitTVEDevice(PeripheralInitInfo initInfo) { tve_curr_line = 10; }
-
-bool TVEIsPAL() {
-  return check_bit(tve_regs[tve_regs_ctrl], tve_regs_ctrl_pal);
-}
-
+void InitTVEDevice(PeripheralInitInfo initInfo) { tve_curr_line = 100; }
 void TVETick() {
   // simulate some kind of vblank to keep the app happy
-  if (tve_curr_line == 55) {
-    tve_curr_line++;
+  if (tve_curr_line == 800) {
+    tve_curr_line = 0;
     if (check_bit(tve_regs[tve_irq_ctrl], tve_irqctl_vblank_start)) {
       SetIRQState(tve_vblank_int, true);
       set_bit(tve_regs[tve_irq_status], 0);
     }
-  } else if (tve_curr_line == 79) {
-    tve_curr_line = 0;
-  } else if (tve_curr_line == 5) {
+  } else if (tve_curr_line == 50) {
     tve_curr_line++;
     if (check_bit(tve_regs[tve_irq_ctrl], tve_irqctl_vblank_end)) {
       SetIRQState(tve_vblank_int, true);
