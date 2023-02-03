@@ -6,4 +6,6 @@ namespace Emu293 {
 extern const Peripheral TVEPeripheral;
 
 void TVETick();
+bool TVEIsPAL();
+
 }

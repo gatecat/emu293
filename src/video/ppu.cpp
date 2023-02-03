@@ -969,13 +969,15 @@ void PPUUpdate() {
 
 void PPUTick() {
   // simulate some kind of vblank to keep the app happy
-  if (curr_line == 800) {
-    curr_line = 0;
+  if (curr_line == 55) {
+    curr_line++;
     if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkstart)) {
       SetIRQState(ppu_intno_vblkstart, true);
       set_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkstart);
     }
-  } else if (curr_line == 50) {
+  } else if (curr_line == 79) {
+    curr_line = 0;
+  } else if (curr_line == 5) {
     curr_line++;
     if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkend)) {
       SetIRQState(ppu_intno_vblkend, true);
@@ -993,7 +995,7 @@ void PPUTick() {
     PPUUpdate();
     render_done = false;
   }
-  CSITick(curr_line == 700);
+  CSITick(curr_line == 70);
 }
 
 void PPUDeviceResetHandler() {
