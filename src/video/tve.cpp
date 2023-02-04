@@ -52,6 +52,8 @@ void TVETick() {
   // simulate some kind of vblank to keep the app happy
   if (tve_curr_line == 800) {
     tve_curr_line = 0;
+  } else if (tve_curr_line == 550) {
+    tve_curr_line++;
     if (check_bit(tve_regs[tve_irq_ctrl], tve_irqctl_vblank_start)) {
       SetIRQState(tve_vblank_int, true);
       set_bit(tve_regs[tve_irq_status], 0);

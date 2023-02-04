@@ -971,6 +971,8 @@ void PPUTick() {
   // simulate some kind of vblank to keep the app happy
   if (curr_line == 800) {
     curr_line = 0;
+  } else if (curr_line == 550) {
+    curr_line++;
     if (check_bit(ppu_regs[ppu_irq_control], ppu_irq_vblkstart)) {
       SetIRQState(ppu_intno_vblkstart, true);
       set_bit(ppu_regs[ppu_irq_status], ppu_irq_vblkstart);
