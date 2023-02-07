@@ -38,6 +38,13 @@ int main(int argc, char *argv[]) {
       if (strcmp(argv[argidx], "-cam") == 0) {
         argidx++;
         webcam_dev = std::string(argv[argidx++]);
+      } else if (strcmp(argv[argidx], "-scale") == 0) {
+        argidx++;
+        video_scale = std::atoi(argv[argidx++]);
+        if (video_scale < 1 || video_scale > 4) {
+          printf("Vidoe scale must be between 1 and 4.\n");
+          return 1;
+        }
       } else {
         break;
       }

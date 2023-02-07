@@ -166,7 +166,7 @@ static bool ppudma_workAvailable = false;
 // Packing: (msb first) Ab000000 00000000 RRRRRGGG GGGBBBBB
 static uint32_t textLayers[3][1024][1024];
 uint16_t rendered[480][640];
-uint16_t scaled[480][640];
+uint16_t scaled[640*4*480*4];
 
 uint16_t curr_line = 0;
 
@@ -676,7 +676,7 @@ void InitPPUDevice(PeripheralInitInfo initInfo) {
 
 SDL_Window *ppu_window;
 SDL_Renderer *ppuwin_renderer;
-bool scaling = false;
+int video_scale = 1;
 
 static void PPURender() {
   for (int y = 0; y < 480; y++) {
@@ -702,18 +702,12 @@ static void PPURender() {
 
   int swidth = ppu_screen_width[ppu_regs[ppu_control] & 0x03];
   int sheight = ppu_screen_height[ppu_regs[ppu_control] & 0x03];
-  scaling = false;
-  if (swidth == 640 && sheight == 480) {
-    scaling = false;
-  } else {
-    int sx = 640/swidth;
-    int sy = 480/sheight;
-    for (int y = 0; y < 480; y++) {
-      for (int x = 0; x < 640; x++) {
-        scaled[y][x] = rendered[y/sy][x/sx];
-      }
+  int sx = video_scale * (640/swidth);
+  int sy = video_scale * (480/sheight);
+  for (int y = 0; y < (480*video_scale); y++) {
+    for (int x = 0; x < (640*video_scale); x++) {
+      scaled[(y*640*video_scale) + x] = rendered[y/sy][x/sx];
     }
-    scaling = true;
   }
 
 }
@@ -722,7 +716,11 @@ static atomic<bool> render_ready, render_done;
 
 static void PPUFlip() {
   SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(
-      (void *)(scaling?scaled:rendered), 640, 480, 16, 640 * 2, 0xF800, 0x07E0, 0x001F, 0x0);
+      (void *)scaled,
+      640 * video_scale, 480 * video_scale,
+      16, 640 * video_scale * 2,
+      0xF800, 0x07E0, 0x001F, 0x0
+    );
 
   SDL_Texture *tex = SDL_CreateTextureFromSurface(ppuwin_renderer, surf);
   SDL_RenderClear(ppuwin_renderer);
@@ -759,7 +757,7 @@ void InitPPUThreads() {
   ppudma_thread = SDL_CreateThread(PPUDMA_Thread, "PPUDMA", nullptr);
 */
   ppu_window = SDL_CreateWindow("emu293", SDL_WINDOWPOS_CENTERED,
-                                SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+                                SDL_WINDOWPOS_CENTERED, 640*video_scale, 480*video_scale, 0);
   if (ppu_window == nullptr) {
     printf("Failed to create window: %s.\n", SDL_GetError());
     exit(1);
