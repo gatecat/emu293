@@ -116,5 +116,39 @@ namespace Emu293 {
 
 		return entryPoint;
 	}
+
+	bool LoadNORToRAM(const char *filename, uint32_t &entryPoint, uint32_t &stackPtr) {
+		FILE  *romFile;
+		romFile = fopen(filename,"rb");
+		if(!romFile) {
+			printf("Failed to open NOR ROM file\n");
+			return false;
+		}
+		uint8_t norHeader[0x20];
+		if(fread(norHeader,1,0x20,romFile) != 32) {
+			printf("Failed to read NOR file header\n");
+			return false;
+		}
+		uint32_t load_addr = get_uint32le(&(norHeader[0x0C]));
+		uint32_t stack_addr = get_uint32le(&(norHeader[0x10]));
+		uint32_t entry_point = get_uint32le(&(norHeader[0x14]));
+		printf("Load addr: %08x\n", load_addr);
+		printf("Stack start?: %08x\n", stack_addr);
+		printf("Entry point: %08x\n", entry_point);
+		if ((load_addr & 0xFE000000) != 0xA0000000 || (entry_point & 0xFE000000) != 0xA0000000) {
+			printf("NOR header addresses out of bound\n");
+			return false;
+		}
+		//fseek(romFile, 0, 0);
+		uint8_t byte = 0;
+		while (fread(&byte,1,1,romFile)) {
+			write_memU8(load_addr++, byte);
+		}
+		fclose(romFile);
+		entryPoint = entry_point;
+		stackPtr = stack_addr;
+		return true;
+	}
+
 }
 

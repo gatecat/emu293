@@ -32,6 +32,7 @@ int main(int argc, char *argv[]) {
   }
 
   int argidx = 1;
+  bool nor_boot = false;
   std::string webcam_dev;
 
   while (true) {
@@ -45,19 +46,29 @@ int main(int argc, char *argv[]) {
           printf("Vidoe scale must be between 1 and 4.\n");
           return 1;
         }
+      } else if (strcmp(argv[argidx], "-nor") == 0) {
+        argidx++;
+        nor_boot = true;
       } else {
         break;
       }
   }
 
-  uint32_t entryPoint;
+  uint32_t entryPoint, stackAddr;
   const char *elf = argv[argidx++];
-  entryPoint = LoadElfToRAM(elf);
-  if (entryPoint == 0) {
-    printf("Failed to load ELF\n");
-    return 1;
+  if (nor_boot) {
+    if (!LoadNORToRAM(elf, entryPoint, stackAddr)) {
+      printf("Failed to load NOR\n");
+      return 1;
+    }
+  } else {
+    entryPoint = LoadElfToRAM(elf);
+    if (entryPoint == 0) {
+      printf("Failed to load ELF\n");
+      return 1;
+    }
+    printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
   }
-  printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
   InitPPUThreads();
   SPUInitSound();
   InitCSIThreads();
@@ -76,6 +87,8 @@ int main(int argc, char *argv[]) {
   //	scoreCPU.cr29 = 0x20000000;
 
   scoreCPU.pc = entryPoint;
+  if (nor_boot)
+    scoreCPU.r2 = stackAddr;
 
   system_init(&scoreCPU);
   write_memU32(0xFFFFFFEC, 1);
