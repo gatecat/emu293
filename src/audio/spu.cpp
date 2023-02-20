@@ -32,10 +32,14 @@ const int spu_softch_ptr = 0x042C;
 const int spu_softch_ctrl_irqst = 15;
 const int spu_softch_ctrl_irqen = 14;
 
+const int spu_beatbasecnt = 0x0404;
+const int spu_beatcnt = 0x0405;
+
 const int spu_ctrl = 0x040D;
 const int spu_ctrl_softch_en = 12;
 
 const int spu_softch_irq = 0x3f;
+const int spu_beat_irq = 0x3e;
 
 const int uoffset = 0x0100;
 
@@ -352,7 +356,6 @@ void start_softch() {
 
 
 void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
-  // printf("SPU write %04x %08x\n", addr, val);
   addr /= 4;
   if(addr == chen || addr == (chen+uoffset)) {
     // channel enable
@@ -375,6 +378,11 @@ void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
     if (check_bit(val, spu_softch_ctrl_irqst)) {
       clear_bit(spu_regs[addr], spu_softch_ctrl_irqst);
       SetIRQState(spu_softch_irq, false);
+    }
+  } else if (addr == spu_beatcnt) {
+    if (check_bit(val, 14)) {
+      clear_bit(spu_regs[addr], 14);
+      SetIRQState(spu_beat_irq, false);
     }
   }
 }
@@ -418,7 +426,7 @@ std::deque<std::pair<int16_t, int16_t>> audio_buf;
 static int64_t update_t = 0;
 static int ticks = 0;
 static int samps = 0;
-
+static int beat_count = 0;
 
 void SPUUpdate() {
   int64_t curr_time = spu_time();
@@ -439,9 +447,21 @@ void SPUUpdate() {
     samp_t0 += samp_period;
     ++samps;
   }
+  bool beat_en = check_bit(spu_regs[spu_beatcnt], 15);
+  int beat_period = (spu_regs[spu_beatbasecnt] & 0x3ff) * (spu_regs[spu_beatcnt] & 0x3fff) * 4;
   while (spu_rate_conv > 0) {
     spu_tick();
     spu_rate_conv -= (1.f / 281250.f);
+    if (beat_en) {
+      ++beat_count;
+      if (beat_count >= beat_period) {
+        SetIRQState(spu_beat_irq, true);
+        set_bit(spu_regs[spu_beatcnt], 14);
+        beat_count = 0;
+      }
+    } else {
+      beat_count = 0;
+    }
     ++ticks;
   }
 #if 0
