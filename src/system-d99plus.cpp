@@ -26,6 +26,9 @@ namespace Emu293 {
 #define RAM_START 0xA0000000
 #define RAM_SIZE (32 * 1024 * 1024) // not sure about this
 
+#define RAM_START_ALIAS 0x80000000 // different caching config
+
+
 #define PERIPH_START 0x88000000
 #define PERIPH_SIZE 0x01000000
 
@@ -52,6 +55,8 @@ uint8_t read_memU8(uint32_t addr) {
     // if (!ram_active[addr - RAM_START])
       // printf("Read8 from uninit memory location 0x%08x\n", addr);
     return ram[addr - RAM_START];
+  } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
+    return ram[addr - RAM_START_ALIAS];
   } else {
     printf("Read8 from unmapped memory location 0x%08x at %08x\n", addr, currentCPU->pc);
     // currentCPU->debugDump();
@@ -64,6 +69,8 @@ void write_memU8(uint32_t addr, uint8_t val) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     ram[addr - RAM_START] = val;
     ram_active[addr - RAM_START] = true;
+  } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
+    ram[addr - RAM_START_ALIAS] = val;
   } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
     imem[addr - IMEM_START] = val;
   } else {
@@ -75,10 +82,10 @@ uint16_t read_memU16(uint32_t addr) {
                   printf("...\n");
           }*/
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
-    //if (!ram_active[addr - RAM_START])
-      //printf("Read16 from uninit memory location 0x%08x\n", addr);
     return get_uint16le(&(ram[addr - RAM_START]));
-    } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
+  } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
+    return get_uint16le(&(ram[addr - RAM_START_ALIAS]));
+  } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
     printf("Read from imem 0x%08x at 0x%08x\n", addr, currentCPU->pc);
 
     return get_uint16le(&(imem[addr - IMEM_START]));
@@ -100,6 +107,8 @@ void write_memU16(uint32_t addr, uint16_t val) {
     set_uint16le(&(ram[addr - RAM_START]), val);
     for (int i = 0; i < 2; i++)
       ram_active[addr - RAM_START + i] = true;
+  } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
+    set_uint16le(&(ram[addr - RAM_START_ALIAS]), val);
   } else {
     // printf("Write 0x%04x to unmapped memory location 0x%08x at 0x%08x\n",
     // val,
@@ -114,6 +123,8 @@ uint32_t read_memU32(uint32_t addr) {
     // printf("Read32 from uninit memory location 0x%08x at 0x%08x\n", addr,
     //         currentCPU->pc);
     return get_uint32le(&(ram[addr - RAM_START]));
+  } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
+    return get_uint32le(&(ram[addr - RAM_START_ALIAS]));
   } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
     printf("Read from imem 0x%08x at 0x%08x\n", addr, currentCPU->pc);
     return get_uint32le(&(imem[addr - IMEM_START]));
@@ -148,6 +159,8 @@ void write_memU32(uint32_t addr, uint32_t val) {
     set_uint32le(&(ram[addr - RAM_START]), val);
     for (int i = 0; i < 4; i++)
       ram_active[addr - RAM_START + i] = true;
+  } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
+    return set_uint32le(&(ram[addr - RAM_START_ALIAS]), val);
   } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
     set_uint32le(&(imem[addr - IMEM_START]), val);
     printf("Write 0x%08x to imem 0x%08x at 0x%08x\n", val, addr,
