@@ -43,7 +43,7 @@ namespace Emu293 {
 			{GPIO_PORT_G, 'G',	8, true,  0x0040, 0x0041, 0x0042, 0x0043, 0x0076, 0x0094},
 			{GPIO_PORT_I, 'I',  8, true,  0x0048, 0x0049, 0x004A, 0x004B, 0x0078, 0x009C},
 			{GPIO_PORT_K, 'K',  8, false, 0x0050, 0x0051, 0x0052, 0xFFFF, 0x0072, 0xFFFF}, //CHECK: 0x0072. could also be 0x0071
-			{GPIO_PORT_R, 'R',  8, false, 0x0128, 0x0129, 0x012A, 0x012B, 0x0130, 0xFFFF},
+			{GPIO_PORT_R, 'R',  8, false, 0x0128, 0x0129, 0x012A, 0x012B, 0x0133, 0xFFFF},
 			{GPIO_PORT_S, 'S',  8, true , 0x0141, 0x0140, 0x0142, 0xFFFF, 0x0143, 0x0144} //almost certainly fudged - needs more data
 	};
 
@@ -149,7 +149,7 @@ namespace Emu293 {
 	GPIOState GetGPIOState (GPIOPort port, uint8_t pin) {
 		if(check_bit(get_u32(gpio_reg[PortInfo[port].OutputEnReg]),pin)) {
 			//is an output
-			if(check_bit(get_u32(gpio_reg[PortInfo[port].OutputEnReg]),pin)) {
+			if(check_bit(get_u32(gpio_reg[PortInfo[port].OutputDataReg]),pin)) {
 				return GPIO_HIGH;
 			} else {
 				return GPIO_LOW;

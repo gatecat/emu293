@@ -15,6 +15,7 @@ namespace Emu293 {
   static int tick_ratio = 10;
 
   bool softreset_flag = false;
+  bool zone3d_pad_mode = false;
 
   // we only care the time between falling edge IRQs
   static int t_start = 2815 / tick_ratio;
@@ -31,9 +32,64 @@ namespace Emu293 {
     FireInterrupt(GPIO_PORT_I, 2, GPIO_FALLING);
   }
 
-  std::queue<uint16_t> packets;
+  static std::queue<uint16_t> packets;
 
-  void IRGamepadTick() {
+  enum IRButtons : uint16_t {
+    BTN_M = 0x0080,
+    BTN_B = 0x0100,
+    BTN_A = 0x0200,
+    BTN_START = 0x0400,
+    BTN_SELECT = 0x0800,
+    BTN_RIGHT = 0x1000,
+    BTN_LEFT = 0x2000,
+    BTN_DOWN = 0x4000,
+    BTN_UP = 0x8000,
+  };
+  static uint16_t player_state[2] = {0};
+
+  static uint16_t zone3d_get_pad(int i) {
+    // TODO: remap
+    uint16_t s = player_state[i];
+    uint16_t result = 0;
+    if (s & BTN_A) result |= (1U<<0);
+    if (s & BTN_B) result |= (1U<<1);
+    if (s & BTN_SELECT) result |= (1U<<2);
+    if (s & BTN_START) result |= (1U<<3);
+    if (s & BTN_RIGHT) result |= (1U<<7);
+    if (s & BTN_LEFT) result |= (1U<<6);
+    if (s & BTN_DOWN) result |= (1U<<5);
+    if (s & BTN_UP) result |= (1U<<4);
+    return ~result;
+  }
+
+  static void tick_zone3d() {
+    static bool last_clk = false;
+    static bool last_latch = false;
+    static uint16_t shiftreg[2] = {0};
+    bool curr_latch = GetGPIOState(GPIO_PORT_I, 1) == GPIO_HIGH;
+    bool curr_clk = GetGPIOState(GPIO_PORT_I, 0) == GPIO_HIGH;
+
+    if (curr_latch && !last_latch) {
+      for (int i = 0; i < 2; i++)
+        shiftreg[i] = zone3d_get_pad(i);
+    }
+
+    if (curr_clk && !last_clk) {
+      for (int i = 0; i < 2; i++)
+        shiftreg[i] >>= 1;
+    }
+
+    SetGPIOInputState(GPIO_PORT_S, 6, shiftreg[0]&0x1);
+    SetGPIOInputState(GPIO_PORT_S, 7, shiftreg[1]&0x1);
+    SetGPIOInputState(GPIO_PORT_R, 0, shiftreg[1]&0x1);
+
+    SetGPIOInputState(GPIO_PORT_G, 0, player_state[0] & BTN_SELECT);
+
+    last_clk = curr_clk;
+    last_latch = curr_latch;
+  }
+
+  static void tick_subor() {
     if (!active) {
       if (!packets.empty()) {
         // schedule next
@@ -69,6 +125,14 @@ namespace Emu293 {
     }
   }
 
+  void IRGamepadTick() {
+    if (zone3d_pad_mode) {
+      tick_zone3d();
+    } else {
+      tick_subor();
+    }
+  }
+
   static uint16_t add_checksum(uint16_t send) {
     uint8_t cksum = 0;
     for (int i = 1; i < 4; i++) { // upper 4 nibbles
@@ -83,23 +147,15 @@ namespace Emu293 {
   }
 
   void IRGamepadUpdate(int player, uint16_t state) {
-    uint16_t data = state;
-    if (player == 1)
-      data |= (1U << 6);
-    do_send(data);
+    if (!zone3d_pad_mode) {
+      uint16_t data = state;
+      if (player == 1)
+        data |= (1U << 6);
+      do_send(data);
+    }
   }
 
-  enum IRButtons : uint16_t {
-    BTN_M = 0x0080,
-    BTN_B = 0x0100,
-    BTN_A = 0x0200,
-    BTN_START = 0x0400,
-    BTN_SELECT = 0x0800,
-    BTN_RIGHT = 0x1000,
-    BTN_LEFT = 0x2000,
-    BTN_DOWN = 0x4000,
-    BTN_UP = 0x8000,
-  };
+
 
   static const map<SDL_Scancode, int> player_keys[2] = {
     { // player 1
@@ -114,7 +170,6 @@ namespace Emu293 {
     }
   };
 
-  static uint16_t player_state[2] = {0};
 
   void IRGamepadEvent(SDL_Event *ev) {
     switch (ev->type) {

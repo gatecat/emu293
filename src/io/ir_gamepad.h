@@ -8,4 +8,5 @@ namespace Emu293 {
 	void IRGamepadUpdate(int player, uint16_t state);
 	void IRGamepadEvent(SDL_Event *ev);
 	extern bool softreset_flag;
+	extern bool zone3d_pad_mode;
 }
