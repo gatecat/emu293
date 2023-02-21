@@ -20,6 +20,7 @@ void InitSPUDevice(PeripheralInitInfo initInfo) {
 }
 
 const int chen = 0x0400;
+const int chstopsts = 0x040B;
 const int chsts = 0x040F;
 const int spu_bank = 0x041F;
 
@@ -58,6 +59,9 @@ const int chan_wavd = 11;
 const int chan_adpcm = 13;
 const int chan_exaddr = 14;
 
+const int ch_envmode = 0x415;
+const int ch_tonerel = 0x416;
+const int ch_rampdown = 0x40a;
 
 static const int channel_start(int i) {
   if (i < 16)
@@ -75,8 +79,11 @@ static const int channel_phase_start(int i) {
 
 struct SPUChState {
   oki_adpcm_state adpcm32;
-  uint32_t nib_addr;
+  uint32_t env_divcnt, env_clk;
+  uint32_t nib_addr, env_addr;
   uint16_t adpcm36_header, adpcm36_remain;
+  uint16_t last_samp;
+  int8_t curr_env;
   int16_t adpcm36_prev[2];
   float iirl, iirr;
   void reset() {
@@ -87,22 +94,36 @@ struct SPUChState {
     adpcm36_remain = 0;
     adpcm36_prev[0] = 0;
     adpcm36_prev[1] = 0;
+    env_divcnt = 0;
+    last_samp = 0x8000;
   }
   void state(SaveStater &s) {
     s.tag("SPUCH");
     s.i(nib_addr);
+    s.i(env_addr);
+    s.i(env_divcnt);
     s.i(adpcm36_header);
     s.i(adpcm36_remain);
     s.i(adpcm36_prev[0]);
     s.i(adpcm36_prev[1]);
+    s.i(last_samp);
+    s.i(curr_env);
   }
 } spu_channels[24];
 
 
-uint32_t get_startaddr(int ch) {
+inline uint32_t get_startaddr(int ch, bool loop = false) {
   int ca = channel_start(ch);
-  uint32_t base = spu_regs[ca+chan_wavaddr] & 0xFFFF;
-  uint32_t hi = spu_regs[ca+chan_mode] & 0x3F;
+  uint32_t base = (loop ? spu_regs[ca+chan_loopaddr] : spu_regs[ca+chan_wavaddr]) & 0xFFFF;
+  uint32_t hi = (loop ? (spu_regs[ca+chan_mode] >> 6) : spu_regs[ca+chan_mode]) & 0x3F;
+  uint32_t xaddr = spu_regs[ca+chan_exaddr] & 0xFF;
+  return (xaddr << 23) | (hi << 17) | (base << 1);
+}
+
+inline uint32_t get_envaddr(int ch) {
+  int ca = channel_start(ch);
+  uint32_t base = spu_regs[ca+chan_enval] & 0xFFFF;
+  uint32_t hi = spu_regs[ca+chan_envah] & 0x3F;
   uint32_t xaddr = spu_regs[ca+chan_exaddr] & 0xFF;
   return (xaddr << 23) | (hi << 17) | (base << 1);
 }
@@ -129,22 +150,36 @@ static void dump_channnel(int i) {
   printf("   acc    %05x\n", spu_regs[a+1]);
   printf("   tphase %05x\n", spu_regs[a+2]);
   printf("   pctrl  %05x\n", spu_regs[a+3]);
+  if(!check_bit(spu_regs[ch_envmode + ((i >= 16) ? uoffset : 0)], i % 16))
+    printf("   auto env\n");
 }
 
-static void start_channel(int ch) {
+static void start_channel(int ch, bool loop = false) {
   spu_channels[ch].reset();
   spu_regs[chsts + ((ch >= 16) ? uoffset : 0)] |= (1 << (ch % 16)); // channel busy
   // nibble address
-  spu_channels[ch].nib_addr = (get_startaddr(ch) & 0x01FFFFFF) * 2;
+  spu_channels[ch].nib_addr = (get_startaddr(ch, loop) & 0x01FFFFFF) * 2;
   if (check_bit(spu_regs[channel_start(ch)+chan_mode], 15) &&
         check_bit(spu_regs[channel_start(ch)+chan_adpcm], 15))
     printf("channel %d started in ADPCM36 mode!\n", ch);
+  // envelope divider
+  uint16_t env_clk_reg = spu_regs[0x406 + ((ch % 16) / 4) + ((ch >= 16) ? uoffset : 0)];
+  uint32_t clk_val = (env_clk_reg >> ((ch % 4) * 4)) & 0xF;
+  if (clk_val >= 0b1011)
+    clk_val = 0b1011;
+  if (!loop) {
+    spu_channels[ch].env_clk = 4 * (4 << clk_val);
+    spu_channels[ch].env_addr = (get_envaddr(ch) & 0x01FFFFFF);
+    spu_channels[ch].curr_env = spu_regs[channel_start(ch)+chan_envd] & 0x7F;
+  }
 }
 
 static void stop_channel(int ch) {
   spu_channels[ch].reset();
   spu_regs[chsts + ((ch >= 16) ? uoffset : 0)] &= ~(1 << (ch % 16)); // channel not busy
+  spu_regs[chsts + ((ch >= 16) ? uoffset : 0)] &= ~(1 << (ch % 16)); // channel stoped
   spu_regs[chen + ((ch >= 16) ? uoffset : 0)] &= ~(1 << (ch % 16)); // channel disabled
+  spu_regs[ch_rampdown + ((ch >= 16) ? uoffset : 0)] &= ~(1 << (ch % 16)); // channel not ramping down
   spu_regs[channel_start(ch)+chan_wavd] = 0x8000; // silence
   spu_regs[channel_start(ch)+chan_mode] &= 0x7FFF; // clear ADPCM bit
 }
@@ -164,9 +199,59 @@ static uint16_t decode_adpcm36(int ch, uint8_t data) {
   return (uint16_t)sdata ^ 0x8000;
 }
 
+static void tick_envelope(int ch) {
+  int ca = channel_start(ch);
+  int ph = channel_phase_start(ch);
+  uint8_t envinc = spu_regs[ca+chan_env0] & 0x7F;
+  int16_t env = spu_regs[ca+chan_envd] & 0x7F;
+  int16_t env_targ = (spu_regs[ca+chan_env0] >> 8) & 0x7F;
+  bool ramp_down = check_bit(spu_regs[ch_rampdown + ((ch >= 16) ? uoffset : 0)], ch % 16);
+  bool auto_mode = !check_bit(spu_regs[ch_envmode + ((ch >= 16) ? uoffset : 0)], ch % 16);
+  if (ramp_down) {
+    // printf("ramp down %d!\n", ch);
+    // TODO: ramp down divider
+    env -= (spu_regs[ca+chan_loopct] >> 9) & 0x3F;
+  } else {
+    if ((envinc != 0) || auto_mode) {
+      bool envsgn = check_bit(spu_regs[ca+chan_env0], 7);
+      uint8_t cnt = (spu_regs[ca+chan_envd] >> 8) & 0xFF;
+      if (cnt == 0) {
+        cnt = (spu_regs[ca+chan_env1] & 0xFF);
+        env = envsgn ? (env - envinc) : (env + envinc);
+        if (env == env_targ && auto_mode) {
+          // reload
+          spu_regs[ca+chan_env0] = get_uint16le(memptr + (spu_channels[ch].env_addr & 0x01FFFFFE));
+          spu_regs[ca+chan_env1] = get_uint16le(memptr + ((spu_channels[ch].env_addr + 2) & 0x01FFFFFE));
+          // printf("ch%d env load %04x %04x\n", ch, spu_regs[ca+chan_env0], spu_regs[ca+chan_env1]);
+          spu_channels[ch].env_addr += 4;
+          // TODO: repeat
+        }
+      } else {
+        cnt--;
+      }
+      spu_regs[ca+chan_envd] = (spu_regs[ca+chan_envd] & 0xFF) | (uint16_t(cnt & 0xFF) << 8);
+    }
+  }
+
+  if (env <= 0) {
+    stop_channel(ch);
+  } else {
+    spu_regs[ca+chan_envd] = (spu_regs[ca+chan_envd] & 0xFF80) | (env & 0x7F);
+  }
+}
+
 static void tick_channel(int ch) {
   if (!check_bit(spu_regs[chen + ((ch >= 16) ? uoffset : 0)], ch % 16))
     return; // channel disabled
+
+
+  // update envelope
+  ++spu_channels[ch].env_divcnt;
+  if (spu_channels[ch].env_divcnt >= spu_channels[ch].env_clk) {
+    spu_channels[ch].env_divcnt = 0;
+    tick_envelope(ch);
+  }
+
   // update phase accumulator
   int pa = channel_phase_start(ch);
   spu_regs[pa+1] += spu_regs[pa+0];
@@ -185,75 +270,68 @@ static void tick_channel(int ch) {
     stop_channel(ch);
   }
 
-  // update envelope
-  uint8_t envinc = spu_regs[ca+chan_env0] & 0x7F;
-  int16_t env = spu_regs[ca+chan_envd] & 0x7F;
-
-  if (envinc != 0) {
-    bool envsgn = check_bit(spu_regs[ca+chan_env0], 7);
-    uint8_t cnt = (spu_regs[ca+chan_envd] >> 8) & 0xFF;
-    if (cnt == 0) {
-      cnt = (spu_regs[ca+chan_env1] & 0xFF);
-      env = envsgn ? (env - envinc) : (env + envinc);
-    } else {
-      cnt--;
-    }
-  }
-
-  if (env <= 0) {
-    stop_channel(ch);
-  } else {
-    spu_regs[ca+chan_envd] = (spu_regs[ca+chan_envd] & 0xFF80) | (env & 0x7F);
-  }
-
   int nibs = 1; // more for non-ADPCM modes..
-  uint16_t fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x01FFFFFE));
-
-  if (adpcm) {
-    if (adpcm36) {
-      if (spu_channels[ch].adpcm36_remain == 0) {
-        // fetch new adpcm36 header
-        spu_channels[ch].adpcm36_header = fetch;
-        spu_channels[ch].nib_addr += 4;
-        fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x01FFFFFE));
-        spu_channels[ch].adpcm36_remain = 8;
-      } else if ((spu_channels[ch].nib_addr & 0x3) == 0x3) {
-        --spu_channels[ch].adpcm36_remain;
+  auto get_sample = [&]() {
+    uint16_t fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x01FFFFFE));
+    if (adpcm) {
+      if (adpcm36) {
+        if (spu_channels[ch].adpcm36_remain == 0) {
+          // fetch new adpcm36 header
+          spu_channels[ch].adpcm36_header = fetch;
+          spu_channels[ch].nib_addr += 4;
+          fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x01FFFFFE));
+          spu_channels[ch].adpcm36_remain = 8;
+        } else if ((spu_channels[ch].nib_addr & 0x3) == 0x3) {
+          --spu_channels[ch].adpcm36_remain;
+        }
+        if (fetch == 0xFFFF && get_uint16le(memptr + (((spu_channels[ch].nib_addr >> 1) - 2) & 0x01FFFFFE)) == 0xFFFF)
+          return false;
+        uint16_t nib = (fetch) >> (4 * (spu_channels[ch].nib_addr & 0x3));
+        spu_regs[ca+chan_wavd] = decode_adpcm36(ch, nib & 0xF);
+      } else {
+        if (fetch == 0xFFFF)
+          return false;
+        uint16_t nib = (fetch) >> (4 * (spu_channels[ch].nib_addr & 0x3));
+        spu_regs[ca+chan_wavd] = uint16_t(spu_channels[ch].adpcm32.clock(nib & 0xF) << 4) ^ uint16_t(0x8000);
       }
-      if (fetch == 0xFFFF && get_uint16le(memptr + (((spu_channels[ch].nib_addr >> 1) - 2) & 0x01FFFFFE)) == 0xFFFF)
-        goto end_of_data;
-      uint16_t nib = (fetch) >> (4 * (spu_channels[ch].nib_addr & 0x3));
-      spu_regs[ca+chan_wavd] = decode_adpcm36(ch, nib & 0xF);
     } else {
-      if (fetch == 0xFFFF)
-        goto end_of_data;
-      uint16_t nib = (fetch) >> (4 * (spu_channels[ch].nib_addr & 0x3));
-      spu_regs[ca+chan_wavd] = uint16_t(spu_channels[ch].adpcm32.clock(nib & 0xF) << 4) ^ uint16_t(0x8000);
+      if (m16) {
+        // 16-bit PCM
+        nibs = 4;
+        if (fetch == 0xFFFF)
+          return false;
+        spu_regs[ca+chan_wavd] = fetch;
+      } else {
+        // 8-bit PCM
+        nibs = 2;
+        uint16_t byt = ((fetch >> (4 * (spu_channels[ch].nib_addr & 0x3))) & 0xFF);
+        if (byt == 0xFF)
+          return false;
+        spu_regs[ca+chan_wavd] = byt << 8;
+      }
+    } 
+    // zero crossing
+    if ((spu_regs[ca+chan_wavd] ^ spu_channels[ch].last_samp) & 0x8000) {
+      spu_channels[ch].curr_env = spu_regs[ca+chan_envd] & 0x7F;
     }
-  } else {
-    if (m16) {
-      // 16-bit PCM
-      if (fetch == 0xFFFF)
-        goto end_of_data;
-      spu_regs[ca+chan_wavd] = fetch;
-      nibs = 4;
-    } else {
-      // 8-bit PCM
-      uint16_t byt = ((fetch >> (4 * (spu_channels[ch].nib_addr & 0x3))) & 0xFF);
-      if (byt == 0xFF)
-        goto end_of_data;
-      spu_regs[ca+chan_wavd] = byt << 8;
-      nibs = 2;
-    }
-  }
-  spu_channels[ch].nib_addr += nibs;
+    spu_channels[ch].last_samp = spu_regs[ca+chan_wavd];
 
-  if (false) {
-end_of_data:
-    if (tone_mode == 2)
-      start_channel(ch); // repeat
-    else
+    spu_channels[ch].nib_addr += nibs;
+    return true;
+  };
+
+  if (!get_sample()) { // end of data
+    if (check_bit(spu_regs[ch_tonerel + ((ch >= 16) ? uoffset : 0)], ch % 16)) {
+      // printf("tone release %d!\n", ch);
+      // tone release - play release tone then stop
+      clear_bit(spu_regs[ch_tonerel + ((ch >= 16) ? uoffset : 0)], ch % 16);
+      spu_channels[ch].nib_addr += nibs;
+    } else if (tone_mode == 2) {
+      start_channel(ch, true); // repeat
+      get_sample();
+    } else {
       stop_channel(ch); // stop
+    }
   }
 
   // TODO: envelope, repeat, non-ADPCM, etc
@@ -317,7 +395,7 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
       continue; // channel disabled
     int ca = channel_start(ch);
     int32_t samp = int16_t(uint16_t(spu_regs[ca+chan_wavd]) ^ uint16_t(0x8000));
-    samp = (samp * int32_t(spu_regs[ca+chan_envd] & 0x7F)) / (1<<7);
+    samp = (samp * int32_t(spu_channels[ch].curr_env & 0x7F)) / (1<<7);
     int32_t vol = int32_t(spu_regs[ca+chan_pan] & 0x7F);
     int32_t pan = int32_t((spu_regs[ca+chan_pan] >> 8) & 0x7F);
     int32_t pan_l = 0, pan_r = 0;
@@ -356,12 +434,13 @@ void start_softch() {
 
 
 void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
+  // printf("SPU write %04x %08x\n", addr, val);
   addr /= 4;
   if(addr == chen || addr == (chen+uoffset)) {
     // channel enable
     for (int i = 0; i < 16; i++) {
       if (!(spu_regs[addr] & (1<<i)) && (val & (1 << i))) {
-        // dump_channnel(i + ((addr & uoffset) ? 16 : 0));
+        dump_channnel(i + ((addr & uoffset) ? 16 : 0));
         // set channel busy
         start_channel(i + ((addr & uoffset) ? 16 : 0));
       } else if ((spu_regs[addr] & (1<<i)) && !(val & (1 << i))) {
@@ -388,6 +467,7 @@ void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
 }
 
 uint32_t SPUDeviceReadHandler(uint16_t addr) {
+  // printf("SPU read %04x %08x\n", addr, spu_regs[addr/4]);
   return spu_regs[addr/4];
 }
 
@@ -426,7 +506,7 @@ std::deque<std::pair<int16_t, int16_t>> audio_buf;
 static int64_t update_t = 0;
 static int ticks = 0;
 static int samps = 0;
-static int beat_count = 0;
+static int beat_base_count = 0;
 
 void SPUUpdate() {
   int64_t curr_time = spu_time();
@@ -448,19 +528,26 @@ void SPUUpdate() {
     ++samps;
   }
   bool beat_en = check_bit(spu_regs[spu_beatcnt], 15);
-  int beat_period = (spu_regs[spu_beatbasecnt] & 0x3ff) * (spu_regs[spu_beatcnt] & 0x3fff) * 4;
+  int beat_period = 4 * (spu_regs[spu_beatbasecnt] & 0x3ff);
   while (spu_rate_conv > 0) {
     spu_tick();
     spu_rate_conv -= (1.f / 281250.f);
     if (beat_en) {
-      ++beat_count;
-      if (beat_count >= beat_period) {
-        SetIRQState(spu_beat_irq, true);
-        set_bit(spu_regs[spu_beatcnt], 14);
-        beat_count = 0;
+      ++beat_base_count;
+      if (beat_base_count >= beat_period) {
+        int beat_cnt = spu_regs[spu_beatcnt] & 0x3fff;
+        if (beat_cnt > 0) {
+          --beat_cnt;
+          if (beat_cnt == 0) {
+            SetIRQState(spu_beat_irq, true);
+            set_bit(spu_regs[spu_beatcnt], 14);
+          }
+        }
+        spu_regs[spu_beatcnt] = (spu_regs[spu_beatcnt] & 0xc000) | (beat_cnt & 0x3fff);
+        beat_base_count = 0;
       }
     } else {
-      beat_count = 0;
+      beat_base_count = 0;
     }
     ++ticks;
   }

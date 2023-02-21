@@ -68,7 +68,6 @@ void write_memU8(uint32_t addr, uint8_t val) {
 
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     ram[addr - RAM_START] = val;
-    ram_active[addr - RAM_START] = true;
   } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
     ram[addr - RAM_START_ALIAS] = val;
   } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
@@ -105,8 +104,6 @@ uint16_t read_memU16(uint32_t addr) {
 void write_memU16(uint32_t addr, uint16_t val) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     set_uint16le(&(ram[addr - RAM_START]), val);
-    for (int i = 0; i < 2; i++)
-      ram_active[addr - RAM_START + i] = true;
   } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
     set_uint16le(&(ram[addr - RAM_START_ALIAS]), val);
   } else {
@@ -157,8 +154,6 @@ uint32_t read_memU32(uint32_t addr) {
 void write_memU32(uint32_t addr, uint32_t val) {
   if ((addr >= RAM_START) && (addr < (RAM_START + RAM_SIZE))) {
     set_uint32le(&(ram[addr - RAM_START]), val);
-    for (int i = 0; i < 4; i++)
-      ram_active[addr - RAM_START + i] = true;
   } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
     return set_uint32le(&(ram[addr - RAM_START_ALIAS]), val);
   } else if ((addr >= IMEM_START) && (addr < (IMEM_START + IMEM_SIZE))) {
