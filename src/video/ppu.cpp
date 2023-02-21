@@ -176,7 +176,7 @@ void ppudma_worker() {
       return;
     }
 
-    uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x01FFFFFF);
+    uint8_t *ramptr = memptr + (ppu_regs[ppu_dma_miu_saddr] & 0x03FFFFFF);
     uint32_t *ppuptr = ppu_regs + ((ppu_regs[ppu_dma_ppu_saddr] & 0xFFFF) / 4);
     /*printf("ppudma start: %08x; ram start: %08x; count=%d; dir=%s\n",
       ppu_regs[ppu_dma_ppu_saddr], ppu_regs[ppu_dma_miu_saddr], ppu_regs[ppu_dma_word_cnt], 
@@ -434,7 +434,7 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
 
   uint8_t *ramBuf =
       memptr +
-      (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
+      (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x03FFFFFF);
   // always use attribute array in bitmap mode???
   /* uint16_t attr = ramBuf[lheight * 4 + line * 2] |
                   (uint16_t(ramBuf[lheight * 4 + line * 2 + 1]) << 8);*/
@@ -451,7 +451,7 @@ static void RenderTextBitmapLine(uint32_t ctrl, bool rgb565, bool argb1555,
     lineBegin = line * lwidth;
   }
   int bank = get_bits(attr, 8, 5);
-  uint8_t *linebuf = memptr + ((ppu_regs[ppu_text_databufptrs[layerNo][0]] + (lineBegin * (bpp / 8))) & 0x01FFFFFF);
+  uint8_t *linebuf = memptr + ((ppu_regs[ppu_text_databufptrs[layerNo][0]] + (lineBegin * (bpp / 8))) & 0x03FFFFFF);
   RAMToCustomFormat(linebuf, out, lwidth, bank, argb1555, rgb565, bpp);
 }
 
@@ -481,17 +481,17 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
   /* if (rgb && !rgb565 && chno != 0 && layerNo == -1) {
     printf("chr 0x%08x\n", chno);
     printf("dat = 0x%08x\n",
-               *reinterpret_cast<uint32_t *>(chbuf + ((chno * chsize) & 0x01FFFFFF)));
+               *reinterpret_cast<uint32_t *>(chbuf + ((chno * chsize) & 0x03FFFFFF)));
     // exit(1);
   } */
 
   if (!trans)
-    RAMToCustomFormat(chbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
+    RAMToCustomFormat(chbuf + ((chno * chsize) & 0x03FFFFFF), chfmtd, chwidth * chheight,
                       bank, rgb && !rgb565, rgb && rgb565, bpp, (layerNo == -1));
 
 /*
   if (layerNo == -1)
-    printf("w=%d h=%d, bpp=%d bank=%d chr0=%02x fmtd0=%08x\n", chwidth, chheight, bpp, bank, *(chbuf + ((chno * chsize) & 0x01FFFFFF)), chfmtd[0]);
+    printf("w=%d h=%d, bpp=%d bank=%d chr0=%02x fmtd0=%08x\n", chwidth, chheight, bpp, bank, *(chbuf + ((chno * chsize) & 0x03FFFFFF)), chfmtd[0]);
 */
 
   for (int y = 0; y < chheight; y++) {
@@ -577,9 +577,9 @@ static void RenderTextLayer(int layerNo) {
     int gridheight = lheight / chheight;
     uint8_t *numbuf =
         memptr +
-        (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
+        (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x03FFFFFF);
     uint8_t *datbuf =
-        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
+        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x03FFFFFF);
     for (int y = 0; y < gridheight; y++) {
       for (int x = 0; x < gridwidth; x++) {
         uint32_t chnum = get_uint16le(&(numbuf[(gridwidth * y + x) * 2]));
@@ -627,7 +627,7 @@ static void RenderSprite(int idx, int currdepth) {
       blend = (attr >> 26) & 0x3F;
     }
     uint8_t *dataptr =
-        (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
+        (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x03FFFFFF));
     /* if (xpos != 0) {
       printf("sprite %d at (%d, %d), chr %d, begin 0x%08x, n %08x, attr 0x%08x\n", idx, xpos, ypos,
              chnum, ppu_regs[ppu_sprite_data_begin_ptr], num, attr);
@@ -815,7 +815,7 @@ static void PPUDebugTextLayer(int layerNo) {
 
 uint8_t *numbuf =
         memptr +
-        (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x01FFFFFF);
+        (ppu_regs[ppu_text_begin[layerNo] + ppu_text_chnumarray] & 0x03FFFFFF);
 
   if (check_bit(ctrl, ppu_tctrl_bitmap)) {
     std::ofstream out(stringf("../../test/ppudebug/layer%d_bmp.txt", layerNo));
@@ -834,7 +834,7 @@ uint8_t *numbuf =
     int gridwidth = lwidth / chwidth;
     int gridheight = lheight / chheight;
     uint8_t *datbuf =
-        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x01FFFFFF);
+        memptr + (ppu_regs[ppu_text_databufptrs[layerNo][0]] & 0x03FFFFFF);
     for (int y = 0; y < gridheight; y++) {
       for (int x = 0; x < gridwidth; x++) {
         uint32_t chnum = get_uint16le(&(numbuf[(gridwidth * y + x) * 2]));
@@ -870,7 +870,7 @@ uint8_t *numbuf =
         // convert char to a format we like
         uint32_t *chfmtd = new uint32_t[chwidth * chheight];
         int chsize = (chwidth * chheight * bpp) / 8;
-        RAMToCustomFormat(datbuf + ((chno * chsize) & 0x01FFFFFF), chfmtd, chwidth * chheight,
+        RAMToCustomFormat(datbuf + ((chno * chsize) & 0x03FFFFFF), chfmtd, chwidth * chheight,
                           bank, argb1555, rgb565, bpp, false);
         for (int dy = 0; dy < chheight; dy++) {
           for (int dx = 0; dx < chwidth; dx++) {
@@ -905,7 +905,7 @@ static void PPUDebugSprites() {
       bool rgb = check_bit(num, 26);
       bool rgb565 = check_bit(num, 27);
       uint8_t *dataptr =
-          (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x01FFFFFF));
+          (memptr + (ppu_regs[ppu_sprite_data_begin_ptr] & 0x03FFFFFF));
       if (xpos != 0) {
         out << stringf("sprite %d at (%d, %d), chr %d, begin 0x%08x, n %08x, attr 0x%08x\n", idx, xpos, ypos,
                chnum, ppu_regs[ppu_sprite_data_begin_ptr], num, attr);

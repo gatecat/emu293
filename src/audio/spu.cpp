@@ -158,7 +158,7 @@ static void start_channel(int ch, bool loop = false) {
   spu_channels[ch].reset();
   spu_regs[chsts + ((ch >= 16) ? uoffset : 0)] |= (1 << (ch % 16)); // channel busy
   // nibble address
-  spu_channels[ch].nib_addr = (get_startaddr(ch, loop) & 0x01FFFFFF) * 2;
+  spu_channels[ch].nib_addr = (get_startaddr(ch, loop) & 0x03FFFFFF) * 2;
   if (check_bit(spu_regs[channel_start(ch)+chan_mode], 15) &&
         check_bit(spu_regs[channel_start(ch)+chan_adpcm], 15))
     printf("channel %d started in ADPCM36 mode!\n", ch);
@@ -169,7 +169,7 @@ static void start_channel(int ch, bool loop = false) {
     clk_val = 0b1011;
   if (!loop) {
     spu_channels[ch].env_clk = 4 * (4 << clk_val);
-    spu_channels[ch].env_addr = (get_envaddr(ch) & 0x01FFFFFF);
+    spu_channels[ch].env_addr = (get_envaddr(ch) & 0x03FFFFFF);
     spu_channels[ch].curr_env = spu_regs[channel_start(ch)+chan_envd] & 0x7F;
   }
 }
@@ -220,8 +220,8 @@ static void tick_envelope(int ch) {
         env = envsgn ? (env - envinc) : (env + envinc);
         if (env == env_targ && auto_mode) {
           // reload
-          spu_regs[ca+chan_env0] = get_uint16le(memptr + (spu_channels[ch].env_addr & 0x01FFFFFE));
-          spu_regs[ca+chan_env1] = get_uint16le(memptr + ((spu_channels[ch].env_addr + 2) & 0x01FFFFFE));
+          spu_regs[ca+chan_env0] = get_uint16le(memptr + (spu_channels[ch].env_addr & 0x03FFFFFE));
+          spu_regs[ca+chan_env1] = get_uint16le(memptr + ((spu_channels[ch].env_addr + 2) & 0x03FFFFFE));
           // printf("ch%d env load %04x %04x\n", ch, spu_regs[ca+chan_env0], spu_regs[ca+chan_env1]);
           spu_channels[ch].env_addr += 4;
           // TODO: repeat
@@ -272,19 +272,19 @@ static void tick_channel(int ch) {
 
   int nibs = 1; // more for non-ADPCM modes..
   auto get_sample = [&]() {
-    uint16_t fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x01FFFFFE));
+    uint16_t fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x03FFFFFE));
     if (adpcm) {
       if (adpcm36) {
         if (spu_channels[ch].adpcm36_remain == 0) {
           // fetch new adpcm36 header
           spu_channels[ch].adpcm36_header = fetch;
           spu_channels[ch].nib_addr += 4;
-          fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x01FFFFFE));
+          fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x03FFFFFE));
           spu_channels[ch].adpcm36_remain = 8;
         } else if ((spu_channels[ch].nib_addr & 0x3) == 0x3) {
           --spu_channels[ch].adpcm36_remain;
         }
-        if (fetch == 0xFFFF && get_uint16le(memptr + (((spu_channels[ch].nib_addr >> 1) - 2) & 0x01FFFFFE)) == 0xFFFF)
+        if (fetch == 0xFFFF && get_uint16le(memptr + (((spu_channels[ch].nib_addr >> 1) - 2) & 0x03FFFFFE)) == 0xFFFF)
           return false;
         uint16_t nib = (fetch) >> (4 * (spu_channels[ch].nib_addr & 0x3));
         spu_regs[ca+chan_wavd] = decode_adpcm36(ch, nib & 0xF);
@@ -363,9 +363,9 @@ void tick_softch() {
   // TODO: what unit is buf_size in, probably samples...
   uint32_t ptr = spu_regs[spu_softch_ptr];
   uint32_t idx = base + ptr * (stereo ? 4 : 2);
-  softch_l = int16_t(get_uint16le(memptr + (idx & 0x01FFFFFE)) ^ 0x8000);
+  softch_l = int16_t(get_uint16le(memptr + (idx & 0x03FFFFFE)) ^ 0x8000);
   if (stereo) {
-    softch_r = int16_t(get_uint16le(memptr + ((idx + 2) & 0x01FFFFFE)) ^ 0x8000);
+    softch_r = int16_t(get_uint16le(memptr + ((idx + 2) & 0x03FFFFFE)) ^ 0x8000);
   } else {
     softch_r = softch_l;
   }

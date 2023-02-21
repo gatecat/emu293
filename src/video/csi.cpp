@@ -114,7 +114,7 @@ void csi_copy_frame() {
     // enablement changed and we overwrite something useful in the meantime
     if (csi_enabled()) {
       uint32_t baseaddr = csi_regs[csi_tg_fbaddr1];
-      uint8_t *ptr = (memptr + (baseaddr & 0x01FFFFFE));
+      uint8_t *ptr = (memptr + (baseaddr & 0x03FFFFFE));
       std::copy(csi_frame_tmp, csi_frame_tmp+(w*h), reinterpret_cast<uint16_t*>(ptr));
     }
     // TODO: frame end interrupt

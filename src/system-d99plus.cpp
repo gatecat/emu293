@@ -24,7 +24,7 @@ using namespace std;
 
 namespace Emu293 {
 #define RAM_START 0xA0000000
-#define RAM_SIZE (32 * 1024 * 1024) // not sure about this
+#define RAM_SIZE (64 * 1024 * 1024) // not sure about this
 
 #define RAM_START_ALIAS 0x80000000 // different caching config
 

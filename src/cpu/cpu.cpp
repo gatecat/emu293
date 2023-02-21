@@ -179,9 +179,9 @@ void CPU::step() {
       queuedInterrupt &= ~(1ULL << irq);
     }
   }
-  if ((pc & 0xFE000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000) {
-    auto ptr = ((pc & 0xFE000000) == 0xA0000000) ? memPtr : imemPtr;
-    uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFC : 0x01FFFFFC;
+  if ((pc & 0xFC000000) == 0xA0000000 || (pc & 0xFF000000) == 0x9F000000) {
+    auto ptr = ((pc & 0xFC000000) == 0xA0000000) ? memPtr : imemPtr;
+    uint32_t mask = ((pc & 0xFF000000) == 0x9F000000 || (pc & 0xFF000000) == 0xBF000000 || (pc & 0xFF000000) == 0x9C000000) ? 0x00FFFFFC : 0x03FFFFFC;
     uint32_t instruction = get_uint32le(ptr + (pc & mask));
     if ((pc & 0x03) == 2)
       instruction >>= 16;

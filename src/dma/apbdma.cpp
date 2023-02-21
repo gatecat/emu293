@@ -92,12 +92,12 @@ void apbdma_work(int chn) {
   if (foundHook != -1) {
     // printf("using hook %d\n", foundHook);
     // use accelerated access
-    if ((dma_regs[dma_ahb_start_a + chn] & 0xFE000000) != 0xA0000000) {
+    if ((dma_regs[dma_ahb_start_a + chn] & 0xFC000000) != 0xA0000000) {
       printf("FIXME: AHB address not main RAM!!!\n");
       workAvailable[chn] = false;
       return;
     }
-    uint8_t *ramBuf = memptr + (dma_regs[dma_ahb_start_a + chn] & 0x01FFFFFF);
+    uint8_t *ramBuf = memptr + (dma_regs[dma_ahb_start_a + chn] & 0x03FFFFFF);
     uint32_t len =
         dma_regs[dma_ahb_end_a + chn] - dma_regs[dma_ahb_start_a + chn];
     if (len < 0) {
