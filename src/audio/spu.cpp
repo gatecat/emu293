@@ -79,29 +79,33 @@ static const int channel_phase_start(int i) {
 
 struct SPUChState {
   oki_adpcm_state adpcm32;
-  uint32_t env_divcnt, env_clk;
+  uint32_t env_divcnt, env_clk, rampdown_divcnt;
   uint32_t nib_addr, env_addr;
   uint16_t adpcm36_header, adpcm36_remain;
   uint16_t last_samp;
   int8_t curr_env;
   int16_t adpcm36_prev[2];
   float iirl, iirr;
-  void reset() {
+  void reset(bool loop = false) {
     adpcm32.reset();
-    iirl = 0;
-    iirr = 0;
     adpcm36_header = 0;
     adpcm36_remain = 0;
     adpcm36_prev[0] = 0;
     adpcm36_prev[1] = 0;
-    env_divcnt = 0;
-    last_samp = 0x8000;
+    if (!loop) {
+      iirl = 0;
+      iirr = 0;
+      env_divcnt = 0;
+      rampdown_divcnt = 0;
+      last_samp = 0x8000;
+    }
   }
   void state(SaveStater &s) {
     s.tag("SPUCH");
     s.i(nib_addr);
     s.i(env_addr);
     s.i(env_divcnt);
+    s.i(rampdown_divcnt);
     s.i(adpcm36_header);
     s.i(adpcm36_remain);
     s.i(adpcm36_prev[0]);
@@ -128,6 +132,21 @@ inline uint32_t get_envaddr(int ch) {
   return (xaddr << 23) | (hi << 17) | (base << 1);
 }
 
+static void dump_samples(int i) {
+  for (int j = 0; j < 2; j++) {
+    printf("   %s: \n", j ? "loop" : "wave");
+    uint32_t a = get_startaddr(i, j);
+    while (true) {
+      uint16_t samp = get_uint16le(memptr + (a & 0x03FFFFFE));
+      if (samp == 0xFFFF)
+        break;
+      printf("%d,", int16_t(samp ^ 0x8000));
+      a += 2;
+    }
+    printf("\n");
+  }
+}
+
 static void dump_channnel(int i) {
   int a = channel_start(i);
   printf("channel %d\n", i);
@@ -145,17 +164,20 @@ static void dump_channnel(int i) {
   printf("   loopct  %04x\n", spu_regs[a+10]); 
   printf("   wavdat  %04x\n", spu_regs[a+11]);
   printf("   adpcm   %04x\n", spu_regs[a+13]);
-  a = channel_phase_start(i);
-  printf("   phase  %05x\n", spu_regs[a+0]);
-  printf("   acc    %05x\n", spu_regs[a+1]);
-  printf("   tphase %05x\n", spu_regs[a+2]);
-  printf("   pctrl  %05x\n", spu_regs[a+3]);
+  int p = channel_phase_start(i);
+  printf("   phase  %05x\n", spu_regs[p+0]);
+  printf("   acc    %05x\n", spu_regs[p+1]);
+  printf("   tphase %05x\n", spu_regs[p+2]);
+  printf("   pctrl  %05x\n", spu_regs[p+3]);
   if(!check_bit(spu_regs[ch_envmode + ((i >= 16) ? uoffset : 0)], i % 16))
     printf("   auto env\n");
+  // if ((spu_regs[a+1] & 0xF000) == 0x6000) {
+  //   dump_samples(i);
+  // }
 }
 
 static void start_channel(int ch, bool loop = false) {
-  spu_channels[ch].reset();
+  spu_channels[ch].reset(loop);
   spu_regs[chsts + ((ch >= 16) ? uoffset : 0)] |= (1 << (ch % 16)); // channel busy
   // nibble address
   spu_channels[ch].nib_addr = (get_startaddr(ch, loop) & 0x03FFFFFF) * 2;
@@ -205,32 +227,25 @@ static void tick_envelope(int ch) {
   uint8_t envinc = spu_regs[ca+chan_env0] & 0x7F;
   int16_t env = spu_regs[ca+chan_envd] & 0x7F;
   int16_t env_targ = (spu_regs[ca+chan_env0] >> 8) & 0x7F;
-  bool ramp_down = check_bit(spu_regs[ch_rampdown + ((ch >= 16) ? uoffset : 0)], ch % 16);
   bool auto_mode = !check_bit(spu_regs[ch_envmode + ((ch >= 16) ? uoffset : 0)], ch % 16);
-  if (ramp_down) {
-    // printf("ramp down %d!\n", ch);
-    // TODO: ramp down divider
-    env -= (spu_regs[ca+chan_loopct] >> 9) & 0x3F;
-  } else {
-    if ((envinc != 0) || auto_mode) {
-      bool envsgn = check_bit(spu_regs[ca+chan_env0], 7);
-      uint8_t cnt = (spu_regs[ca+chan_envd] >> 8) & 0xFF;
-      if (cnt == 0) {
-        cnt = (spu_regs[ca+chan_env1] & 0xFF);
-        env = envsgn ? (env - envinc) : (env + envinc);
-        if (env == env_targ && auto_mode) {
-          // reload
-          spu_regs[ca+chan_env0] = get_uint16le(memptr + (spu_channels[ch].env_addr & 0x03FFFFFE));
-          spu_regs[ca+chan_env1] = get_uint16le(memptr + ((spu_channels[ch].env_addr + 2) & 0x03FFFFFE));
-          // printf("ch%d env load %04x %04x\n", ch, spu_regs[ca+chan_env0], spu_regs[ca+chan_env1]);
-          spu_channels[ch].env_addr += 4;
-          // TODO: repeat
-        }
-      } else {
-        cnt--;
+  if ((envinc != 0) || auto_mode) {
+    bool envsgn = check_bit(spu_regs[ca+chan_env0], 7);
+    uint8_t cnt = (spu_regs[ca+chan_envd] >> 8) & 0xFF;
+    if (cnt == 0) {
+      cnt = (spu_regs[ca+chan_env1] & 0xFF);
+      env = envsgn ? (env - envinc) : (env + envinc);
+      if (env == env_targ && auto_mode) {
+        // reload
+        spu_regs[ca+chan_env0] = get_uint16le(memptr + (spu_channels[ch].env_addr & 0x03FFFFFE));
+        spu_regs[ca+chan_env1] = get_uint16le(memptr + ((spu_channels[ch].env_addr + 2) & 0x03FFFFFE));
+        // printf("ch%d env load %04x %04x\n", ch, spu_regs[ca+chan_env0], spu_regs[ca+chan_env1]);
+        spu_channels[ch].env_addr += 4;
+        // TODO: repeat
       }
-      spu_regs[ca+chan_envd] = (spu_regs[ca+chan_envd] & 0xFF) | (uint16_t(cnt & 0xFF) << 8);
+    } else {
+      cnt--;
     }
+    spu_regs[ca+chan_envd] = (spu_regs[ca+chan_envd] & 0xFF) | (uint16_t(cnt & 0xFF) << 8);
   }
 
   if (env <= 0) {
@@ -244,7 +259,27 @@ static void tick_channel(int ch) {
   if (!check_bit(spu_regs[chen + ((ch >= 16) ? uoffset : 0)], ch % 16))
     return; // channel disabled
 
+  int ca = channel_start(ch);
+  int pa = channel_phase_start(ch);
 
+  bool ramp_down = check_bit(spu_regs[ch_rampdown + ((ch >= 16) ? uoffset : 0)], ch % 16);
+  if (ramp_down) {
+    // ramp down
+    ++spu_channels[ch].rampdown_divcnt;
+    uint32_t rampdown_sel = (spu_regs[pa+3] >> 16) & 0x7;
+    int32_t rampdown_div = 4 * 13 * std::min((4U << (2*rampdown_sel)), 8192U);
+    if (spu_channels[ch].rampdown_divcnt >= rampdown_div) {
+      spu_channels[ch].rampdown_divcnt = 0;
+      int16_t env = spu_regs[ca+chan_envd] & 0x7F;
+      int16_t delta = ((spu_regs[ca+chan_loopct] >> 9) & 0x3F);
+      env -= delta;
+      if (env <= 0) {
+        stop_channel(ch);
+      } else {
+        spu_regs[ca+chan_envd] = (spu_regs[ca+chan_envd] & 0xFF80) | (env & 0x7F);
+      }
+    }
+  }
   // update envelope
   ++spu_channels[ch].env_divcnt;
   if (spu_channels[ch].env_divcnt >= spu_channels[ch].env_clk) {
@@ -253,12 +288,10 @@ static void tick_channel(int ch) {
   }
 
   // update phase accumulator
-  int pa = channel_phase_start(ch);
   spu_regs[pa+1] += spu_regs[pa+0];
   if (!check_bit(spu_regs[pa+1], 19))
     return; // no tick as no overflow
   spu_regs[pa+1] &= 0x7FFFF;
-  int ca = channel_start(ch);
   uint16_t mode = spu_regs[ca+chan_mode];
   bool adpcm = check_bit(mode, 15);
   bool adpcm36 = check_bit(spu_regs[ca+chan_adpcm], 15);
@@ -322,13 +355,13 @@ static void tick_channel(int ch) {
 
   if (!get_sample()) { // end of data
     if (check_bit(spu_regs[ch_tonerel + ((ch >= 16) ? uoffset : 0)], ch % 16)) {
-      // printf("tone release %d!\n", ch);
+      printf("tone release %d!\n", ch);
       // tone release - play release tone then stop
       clear_bit(spu_regs[ch_tonerel + ((ch >= 16) ? uoffset : 0)], ch % 16);
       spu_channels[ch].nib_addr += nibs;
     } else if (tone_mode == 2) {
       start_channel(ch, true); // repeat
-      get_sample();
+      get_sample(); // compensate for the 'FFFF' we swallowed...
     } else {
       stop_channel(ch); // stop
     }
@@ -394,7 +427,12 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
     if (!check_bit(spu_regs[chen + ((ch >= 16) ? uoffset : 0)], ch % 16))
       continue; // channel disabled
     int ca = channel_start(ch);
+    int pa = channel_phase_start(ch);
+    int phase = spu_regs[pa+1];
+    float lerp_factor = float(phase) / float(1<<19);
+    int32_t last_samp = int16_t(spu_channels[ch].last_samp ^ uint16_t(0x8000));
     int32_t samp = int16_t(uint16_t(spu_regs[ca+chan_wavd]) ^ uint16_t(0x8000));
+    int32_t lerp_samp = int32_t(samp * lerp_factor + last_samp * (1.f-lerp_factor));
     samp = (samp * int32_t(spu_channels[ch].curr_env & 0x7F)) / (1<<7);
     int32_t vol = int32_t(spu_regs[ca+chan_pan] & 0x7F);
     int32_t pan = int32_t((spu_regs[ca+chan_pan] >> 8) & 0x7F);
@@ -406,7 +444,6 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
       pan_l = (0x7f - pan) * 2 * vol;
       pan_r = 0x7f * vol;
     }
-    // TODO: make vol/pan work
     int32_t lf = (samp * pan_l) / (1<<14);
     int32_t rf = (samp * pan_r) / (1<<14);
     float alpha = 0.33;
