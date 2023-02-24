@@ -214,10 +214,10 @@ static inline uint32_t Argb1555ToCustomFormat(uint16_t argb1555) {
 static inline uint32_t Rgb565ToCustomFormat(uint16_t rgb565) { return rgb565; }
 
 static inline void BlendCustomFormatToSurface(uint32_t data, uint8_t alpha,
-                                              uint16_t &surface) {
+                                              uint16_t &surface, bool rgb_src = true) {
   if ((data & 0x80000000) == 0) {
     if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
-        && (data & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
+        && (data & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF) && rgb_src)
         return;
     if ((data & 0x40000000) == 0) {
       surface = data & 0xFFFF;
@@ -283,6 +283,11 @@ static void MergeTextLayer(int layerNo) {
   uint16_t start_line = ppu_regs[ppu_25d_startline];
   uint16_t center_line = ppu_regs[ppu_25d_centline];
 
+  bool rgb = false;
+  if (check_bit(ctrl, ppu_tctrl_rgb555) || check_bit(ctrl, ppu_tctrl_rgb565)) {
+    rgb = true;
+  }
+
   if (check_bit(ctrl, ppu_tctrl_enable)) {
     // printf("layer %d enable\n", layerNo);
     /* printf("layer %d dx %04x dy %04x mode %01x\n",
@@ -343,11 +348,11 @@ static void MergeTextLayer(int layerNo) {
         if (blnden) {
           BlendCustomFormatToSurface(
               textLayers[layerNo][ty][tx] | 0x40000000, alpha,
-              rendered[y][x]);
+              rendered[y][x], rgb);
 
         } else {
           BlendCustomFormatToSurface(
-              textLayers[layerNo][ty][tx], 63, rendered[y][x]);
+              textLayers[layerNo][ty][tx], 63, rendered[y][x], rgb);
         }
       }
     }
@@ -527,10 +532,11 @@ static void RenderTextChar(uint8_t *chbuf, uint16_t attr, uint32_t chno,
             if (pixel & 0x80000000)
               continue; // ARGB1555 transparency
             if (check_bit(ppu_regs[ppu_trans_rgb], ppu_transrgb_en)
-                && (pixel & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF))
+                && (pixel & 0xFFFF) == (ppu_regs[ppu_trans_rgb] & 0xFFFF)
+                && bpp == 16)
                 continue; // magic colour transparency
             if (blend != -1)
-              BlendCustomFormatToSurface((pixel & 0xFFFF) | 0x40000000, blend, rendered[outy][outx]);
+              BlendCustomFormatToSurface((pixel & 0xFFFF) | 0x40000000, blend, rendered[outy][outx], (bpp==16));
             else
               rendered[outy][outx] = uint16_t(pixel & 0xFFFF);
           }
