@@ -5,7 +5,10 @@
 namespace Emu293 {
 extern const Peripheral SPUPeripheral;
 
+extern bool spu_debug_flag;
+
 void SPUInitSound();
 void SPUUpdate();
+void ShutdownSPU();
 
 }

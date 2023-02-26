@@ -10,10 +10,21 @@
 #include <deque>
 #include <utility>
 
+#include <fcntl.h>
+#include <unistd.h>
+
 namespace Emu293 {
 
 static uint32_t spu_regs[16384];
 static uint8_t *memptr = nullptr;
+
+bool spu_debug_flag = false;
+static int wave_file = -1;
+static int wave_samples = 0;
+
+static constexpr int wave_channels = 26;
+const int wave_rate = 48000;
+const int wave_bytes = 2;
 
 void InitSPUDevice(PeripheralInitInfo initInfo) {
   memptr = get_dma_ptr(0xA0000000);
@@ -302,6 +313,7 @@ static void tick_channel(int ch) {
     printf("SPU: SW channels not supported!\n");
     stop_channel(ch);
   }
+  spu_channels[ch].last_samp = spu_regs[ca+chan_wavd];
 
   int nibs = 1; // more for non-ADPCM modes..
   auto get_sample = [&]() {
@@ -347,8 +359,6 @@ static void tick_channel(int ch) {
     if ((spu_regs[ca+chan_wavd] ^ spu_channels[ch].last_samp) & 0x8000) {
       spu_channels[ch].curr_env = spu_regs[ca+chan_envd] & 0x7F;
     }
-    spu_channels[ch].last_samp = spu_regs[ca+chan_wavd];
-
     spu_channels[ch].nib_addr += nibs;
     return true;
   };
@@ -423,6 +433,8 @@ static void spu_tick() {
 
 static void spu_mix_channels(int16_t &l, int16_t &r) {
   int32_t lm = 0, rm = 0;
+  uint16_t wave_chunk[wave_channels];
+  std::fill(wave_chunk, wave_chunk+wave_channels, 0x0);
   for (int ch = 0; ch < 24; ch++) {
     if (!check_bit(spu_regs[chen + ((ch >= 16) ? uoffset : 0)], ch % 16))
       continue; // channel disabled
@@ -433,7 +445,8 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
     int32_t last_samp = int16_t(spu_channels[ch].last_samp ^ uint16_t(0x8000));
     int32_t samp = int16_t(uint16_t(spu_regs[ca+chan_wavd]) ^ uint16_t(0x8000));
     int32_t lerp_samp = int32_t(samp * lerp_factor + last_samp * (1.f-lerp_factor));
-    samp = (samp * int32_t(spu_channels[ch].curr_env & 0x7F)) / (1<<7);
+    samp = (lerp_samp * int32_t(spu_channels[ch].curr_env & 0x7F)) / (1<<7);
+    wave_chunk[ch + 2] = lerp_samp; 
     int32_t vol = int32_t(spu_regs[ca+chan_pan] & 0x7F);
     int32_t pan = int32_t((spu_regs[ca+chan_pan] >> 8) & 0x7F);
     int32_t pan_l = 0, pan_r = 0;
@@ -460,6 +473,12 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
   rm /= 8;
   l = std::min<int32_t>(std::max<int32_t>(-32767, lm), 32767);
   r = std::min<int32_t>(std::max<int32_t>(-32767, rm), 32767);
+  wave_chunk[0] = l;
+  wave_chunk[1] = r;
+  if (wave_file > 0) {
+    write(wave_file, reinterpret_cast<const void*>(wave_chunk), 2*wave_channels);
+    wave_samples += 1;
+  }
 }
 
 void start_softch() {
@@ -643,6 +662,43 @@ void SPUInitSound() {
     exit(1);
   }
   SDL_PauseAudioDevice(audio_dev, 0);
+  if (spu_debug_flag) {
+    wave_file = creat("../../test/ppudebug/spu_wave.wav", S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (wave_file < 0) {
+      printf("Failed to open debug wave file.\n");
+      exit(1);
+    }
+    // header will be filled in later
+    static constexpr int hdr_size = 0x2c;
+    uint8_t padding[hdr_size];
+    std::fill(padding, padding+hdr_size, 0x00);
+    write(wave_file, padding, hdr_size);
+  }
+}
+
+void ShutdownSPU() {
+  if (wave_file > 0) {
+    // append wave header
+    static constexpr int hdr_size = 0x2c;
+    int data_size = wave_samples * wave_channels * 2;
+    int file_size = data_size + hdr_size;
+    uint8_t header[hdr_size];
+    memcpy(reinterpret_cast<void*>(header+0), reinterpret_cast<const void*>("RIFF"), 4);
+    set_uint32le(header+4, data_size-8);
+    memcpy(reinterpret_cast<void*>(header+8), reinterpret_cast<const void*>("WAVE"), 4);
+    memcpy(reinterpret_cast<void*>(header+12), reinterpret_cast<const void*>("fmt "), 4);
+    set_uint32le(header+16, 16);
+    set_uint16le(header+20, 0x0001); // PCM
+    set_uint16le(header+22, wave_channels);
+    set_uint32le(header+24, wave_rate);
+    set_uint32le(header+28, wave_rate*wave_channels*2);
+    set_uint16le(header+32, wave_channels*2);
+    set_uint16le(header+34, 16);
+    memcpy(reinterpret_cast<void*>(header+36), reinterpret_cast<const void*>("data"), 4);
+    set_uint32le(header+40, data_size);
+    pwrite(wave_file, reinterpret_cast<void*>(header), hdr_size, 0);
+    close(wave_file);
+  }
 }
 
 const Peripheral SPUPeripheral = {"SPU", InitSPUDevice, SPUDeviceReadHandler,

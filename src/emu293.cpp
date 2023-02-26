@@ -49,6 +49,9 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[argidx], "-nor") == 0) {
         argidx++;
         nor_boot = true;
+      } else if (strcmp(argv[argidx], "-spudebug") == 0) {
+        argidx++;
+        spu_debug_flag = true;
       } else if (strcmp(argv[argidx], "-zone3d") == 0) {
         argidx++;
         zone3d_pad_mode = true;
@@ -176,6 +179,7 @@ int main(int argc, char *argv[]) {
     // SDL_Delay(1);
   }
   ShutdownCSI();
+  ShutdownSPU();
   webcam_stop();
   SDL_Quit();
   return 0;
