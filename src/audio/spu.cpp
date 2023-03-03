@@ -217,19 +217,58 @@ static void stop_channel(int ch) {
   spu_regs[channel_start(ch)+chan_mode] &= 0x7FFF; // clear ADPCM bit
 }
 
+static int32_t adpcm_filter_coeff[32][2] = {
+  {0, 0},
+  {60, 0},
+  {115, -52},
+  {98, -55},
+  {122, -60},
+  {127, -64},
+  {64, 0},
+  {-64, 0},
+  {-75, -36},
+  {63, -6},
+  {6, 19},
+  {54, -12},
+  {-24, -32},
+  {73, -21},
+  {-42, -15},
+  {65, -3},
+  {23, -7},
+  {75, -14},
+  {10, -30},
+  {85, -34},
+  {65, -33},
+  {97, -47},
+  {-9, -12},
+  {86, -26},
+  {39, 15},
+  {79, -47},
+  {41, -27},
+  {98, -38},
+  {38, -50},
+  {111, -52},
+  {0, 0},
+  {0, 0}
+};
+
 static uint16_t decode_adpcm36(int ch, uint8_t data) {
   // from https://github.com/mamedev/mame/blob/master/src/devices/machine/spg2xx_audio.cpp
   // credits: Ryan Holtz,Jonathan Gevaryahu
   auto &state = spu_channels[ch];
   int32_t shift = state.adpcm36_header & 0xf;
-  int16_t filter = (state.adpcm36_header & 0x3f0) >> 4;
-  int16_t f0 = filter | ((filter & 0x20) ? ~0x3f : 0); // sign extend
-  int32_t f1 = 0;
+  int16_t filter = (state.adpcm36_header >> 4) & 0x1f;;
+  int32_t f0 = int32_t(state.adpcm36_prev[0]) * adpcm_filter_coeff[filter][0];
+  if (f0 < 0) f0 += 63;
+  int32_t f1 = int32_t(state.adpcm36_prev[1]) * adpcm_filter_coeff[filter][1];
+  if (f1 < 0) f1 += 63;
   int16_t sdata = data << 12;
-  sdata = (sdata >> shift) + (((state.adpcm36_prev[0] * f0) + (state.adpcm36_prev[1] * f1) + 32) >> 12);
+  int32_t d = (int32_t(sdata) >> shift) + (f0 >> 6) + (f1 >> 6);
+  d = std::max(-32768, std::min(32767, d));
+
   state.adpcm36_prev[1] = state.adpcm36_prev[0];
-  state.adpcm36_prev[0] = sdata;
-  return (uint16_t)sdata ^ 0x8000;
+  state.adpcm36_prev[0] = int16_t(d);
+  return (uint16_t)d ^ 0x8000;
 }
 
 static void tick_envelope(int ch) {
@@ -323,14 +362,14 @@ static void tick_channel(int ch) {
         if (spu_channels[ch].adpcm36_remain == 0) {
           // fetch new adpcm36 header
           spu_channels[ch].adpcm36_header = fetch;
+          if (((spu_channels[ch].adpcm36_header >> 9) & 0x1f) != 0x1f)
+            return false;
           spu_channels[ch].nib_addr += 4;
           fetch = get_uint16le(memptr + ((spu_channels[ch].nib_addr >> 1) & 0x03FFFFFE));
           spu_channels[ch].adpcm36_remain = 8;
         } else if ((spu_channels[ch].nib_addr & 0x3) == 0x3) {
           --spu_channels[ch].adpcm36_remain;
         }
-        if (fetch == 0xFFFF && get_uint16le(memptr + (((spu_channels[ch].nib_addr >> 1) - 2) & 0x03FFFFFE)) == 0xFFFF)
-          return false;
         uint16_t nib = (fetch) >> (4 * (spu_channels[ch].nib_addr & 0x3));
         spu_regs[ca+chan_wavd] = decode_adpcm36(ch, nib & 0xF);
       } else {
@@ -370,6 +409,7 @@ static void tick_channel(int ch) {
       clear_bit(spu_regs[ch_tonerel + ((ch >= 16) ? uoffset : 0)], ch % 16);
       spu_channels[ch].nib_addr += nibs;
     } else if (tone_mode == 2) {
+      spu_regs[ca+chan_mode] &= 0x7FFF; // ADPCM doesn't loop
       start_channel(ch, true); // repeat
       get_sample(); // compensate for the 'FFFF' we swallowed...
     } else {
