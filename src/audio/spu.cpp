@@ -496,7 +496,7 @@ void SPUDeviceWriteHandler(uint16_t addr, uint32_t val) {
     // channel enable
     for (int i = 0; i < 16; i++) {
       if (!(spu_regs[addr] & (1<<i)) && (val & (1 << i))) {
-        dump_channnel(i + ((addr & uoffset) ? 16 : 0));
+        // dump_channnel(i + ((addr & uoffset) ? 16 : 0));
         // set channel busy
         start_channel(i + ((addr & uoffset) ? 16 : 0));
       } else if ((spu_regs[addr] & (1<<i)) && !(val & (1 << i))) {
