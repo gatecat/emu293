@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
   }
 
   int argidx = 1;
-  bool nor_boot = false;
+  bool nor_boot = false, nand_boot = false;
   std::string webcam_dev;
 
   while (true) {
@@ -49,6 +49,9 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[argidx], "-nor") == 0) {
         argidx++;
         nor_boot = true;
+      } else if (strcmp(argv[argidx], "-nand") == 0) {
+        argidx++;
+        nand_boot = true;
       } else if (strcmp(argv[argidx], "-spudebug") == 0) {
         argidx++;
         spu_debug_flag = true;
@@ -85,6 +88,11 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
       scoreCPU.r0 = stackAddr;
+    } else if (nand_boot) {
+      if (!LoadNANDToRAM(elf, entryPoint, stackAddr)) {
+        printf("Failed to load NAND\n");
+        exit(1);
+      }
     } else {
       entryPoint = LoadElfToRAM(elf);
       if (entryPoint == 0) {

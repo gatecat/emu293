@@ -150,5 +150,43 @@ namespace Emu293 {
 		return true;
 	}
 
+	bool LoadNANDToRAM(const char *filename, uint32_t &entryPoint, uint32_t &stackPtr) {
+		FILE  *romFile;
+		romFile = fopen(filename,"rb");
+		if(!romFile) {
+			printf("Failed to open NOR ROM file\n");
+			return false;
+		}
+		uint8_t norHeader[0x20];
+		if(fread(norHeader,1,0x20,romFile) != 32) {
+			printf("Failed to read NOR file header\n");
+			return false;
+		}
+		uint32_t load_addr = get_uint32le(&(norHeader[0x0C]));
+		uint32_t end_addr = get_uint32le(&(norHeader[0x10]));
+		uint32_t entry_point = get_uint32le(&(norHeader[0x14]));
+		printf("Load addr: %08x\n", load_addr);
+		printf("End addr: %08x\n", end_addr);
+		printf("Entry point: %08x\n", entry_point);
+		if ((load_addr & 0xFE000000) != 0xA0000000 || (entry_point & 0xFE000000) != 0xA0000000) {
+			printf("NOR header addresses out of bound\n");
+			return false;
+		}
+		fseek(romFile, 0x10800, 0);
+		uint8_t byte = 0;
+		unsigned chunk_byte = 0;
+		while (fread(&byte,1,1,romFile) && load_addr < end_addr) {
+			if (chunk_byte < 0x200) // skip over ECC?
+				write_memU8(load_addr++, byte);
+			chunk_byte++;
+			if (chunk_byte >= 0x210)
+				chunk_byte = 0;
+		}
+		fclose(romFile);
+		entryPoint = entry_point;
+		stackPtr = 0;
+		return true;
+	}
+
 }
 
