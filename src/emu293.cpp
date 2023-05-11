@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
 
   if (argc < 3) {
-    printf("Usage: ./emu293 lead.sys sdcard.img\n");
+    printf("Usage: ./emu293 [-cam /dev/videoN] [-scale {1,2,3,4}] [-zone3d] [-nor] lead.sys sdcard.img\n");
     return 1;
   }
 
