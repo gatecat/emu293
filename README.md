@@ -6,7 +6,7 @@ Currently the target platform is a Lexibook JG7425 although Subor systems (who s
 
 Building:
 
- - Install SDL etc
+ - Install SDL and WxWidgets
  - run `make` in `src/`
 
 Using:
