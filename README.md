@@ -1,7 +1,5 @@
 # SPG293 Console Emulator -- alpha
 
-***This is highly experimental and relatively awful codebase I mostly wrote 6-7 years ago while figuring all this stuff out. Please don't expect much.***
-
 This is an emulator for a range of obscure clone consoles using the Sunplus SPG293 SoC.
 
 Currently the target platform is a Lexibook JG7425 although Subor systems (who seem to be the OEM for the Lexibook one too) are also being investigated.

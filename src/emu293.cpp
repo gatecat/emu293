@@ -23,49 +23,73 @@ static std::string state_file(int slot) {
   return stringf("../roms/slot_%d.sav", slot);
 }
 
+namespace {
+std::string webcam_dev;
+std::string elf_file;
+std::string sd_card;
+
+bool nor_boot;
+}
+
+
 int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
 
-  if (argc < 3) {
+  if (argc == 1) {
+    // TODO: show selector GUI
     printf("Usage: ./emu293 [-cam /dev/videoN] [-scale {1,2,3,4}] [-zone3d] [-nor] lead.sys sdcard.img\n");
     return 1;
-  }
+  } else {
 
-  int argidx = 1;
-  bool nor_boot = false;
-  std::string webcam_dev;
+    int argidx = 1;
 
-  while (true) {
-      if (strcmp(argv[argidx], "-cam") == 0) {
-        argidx++;
-        webcam_dev = std::string(argv[argidx++]);
-      } else if (strcmp(argv[argidx], "-scale") == 0) {
-        argidx++;
-        video_scale = std::atoi(argv[argidx++]);
-        if (video_scale < 1 || video_scale > 4) {
-          printf("Vidoe scale must be between 1 and 4.\n");
-          return 1;
+    while (true) {
+        if (argidx >= argc) {
+          goto usage;
+        } else if (strcmp(argv[argidx], "-cam") == 0) {
+          argidx++;
+          webcam_dev = std::string(argv[argidx++]);
+        } else if (strcmp(argv[argidx], "-scale") == 0) {
+          argidx++;
+          video_scale = std::atoi(argv[argidx++]);
+          if (video_scale < 1 || video_scale > 4) {
+            printf("Vidoe scale must be between 1 and 4.\n");
+            return 1;
+          }
+        } else if (strcmp(argv[argidx], "-nor") == 0) {
+          argidx++;
+          nor_boot = true;
+        } else if (strcmp(argv[argidx], "-spudebug") == 0) {
+          argidx++;
+          spu_debug_flag = true;
+        } else if (strcmp(argv[argidx], "-zone3d") == 0) {
+          argidx++;
+          zone3d_pad_mode = true;
+        } else if (*(argv[argidx]) != '-') {
+          break;
+        } else {
+          goto usage;
         }
-      } else if (strcmp(argv[argidx], "-nor") == 0) {
-        argidx++;
-        nor_boot = true;
-      } else if (strcmp(argv[argidx], "-spudebug") == 0) {
-        argidx++;
-        spu_debug_flag = true;
-      } else if (strcmp(argv[argidx], "-zone3d") == 0) {
-        argidx++;
-        zone3d_pad_mode = true;
-      } else {
-        break;
-      }
+    }
+    if ((argidx + 2) != argc) {
+      goto usage;
+    }
+    elf_file = argv[argidx++];
+    sd_card = argv[argidx++];
+
+    if (false) {
+usage:
+      printf("Usage: ./emu293 [-cam /dev/videoN] [-scale {1,2,3,4}] [-zone3d] [-nor] lead.sys sdcard.img\n");
+      return 2;
+    }
+
   }
 
   uint32_t entryPoint, stackAddr;
-  const char *elf = argv[argidx++];
   InitPPUThreads();
   SPUInitSound();
   InitCSIThreads();
-  if (!SD_InitCard(argv[argidx++])) {
+  if (!SD_InitCard(sd_card.c_str())) {
     printf("Failed to load SD card image\n");
   }
 
@@ -80,13 +104,13 @@ int main(int argc, char *argv[]) {
   //	scoreCPU.cr29 = 0x20000000;
   auto do_load_image = [&]() {
     if (nor_boot) {
-      if (!LoadNORToRAM(elf, entryPoint, stackAddr)) {
+      if (!LoadNORToRAM(elf_file.c_str(), entryPoint, stackAddr)) {
         printf("Failed to load NOR\n");
         exit(1);
       }
       scoreCPU.r0 = stackAddr;
     } else {
-      entryPoint = LoadElfToRAM(elf);
+      entryPoint = LoadElfToRAM(elf_file.c_str());
       if (entryPoint == 0) {
         printf("Failed to load ELF\n");
         exit(1);
