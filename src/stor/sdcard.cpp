@@ -11,6 +11,18 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#ifdef _WIN32
+#define open64 open
+static int64_t pwrite64(int fd, void *buf, uint64_t count, uint64_t offset) {
+  _lseeki64(fd, offset, SEEK_SET);
+  return _write(fd, buf, (unsigned int)count);
+}
+static int64_t pread64(int fd, void *buf, uint64_t count, uint64_t offset) {
+  _lseeki64(fd, offset, SEEK_SET);
+  return _read(fd, buf, (unsigned int)count);
+}
+#endif
+
 using namespace std;
 
 namespace Emu293 {

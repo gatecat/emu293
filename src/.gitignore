@@ -4,3 +4,4 @@ emu293
 tools/crack
 tools/analysis
 log.txt
+*.dll

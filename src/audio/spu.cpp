@@ -515,10 +515,12 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
   r = std::min<int32_t>(std::max<int32_t>(-32767, rm), 32767);
   wave_chunk[0] = l;
   wave_chunk[1] = r;
+#ifndef _WIN32
   if (wave_file > 0) {
     write(wave_file, reinterpret_cast<const void*>(wave_chunk), 2*wave_channels);
     wave_samples += 1;
   }
+#endif
 }
 
 void start_softch() {
@@ -702,6 +704,7 @@ void SPUInitSound() {
     exit(1);
   }
   SDL_PauseAudioDevice(audio_dev, 0);
+#ifndef _WIN32
   if (spu_debug_flag) {
     wave_file = creat("../../test/ppudebug/spu_wave.wav", S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (wave_file < 0) {
@@ -714,9 +717,11 @@ void SPUInitSound() {
     std::fill(padding, padding+hdr_size, 0x00);
     write(wave_file, padding, hdr_size);
   }
+#endif
 }
 
 void ShutdownSPU() {
+#ifndef _WIN32
   if (wave_file > 0) {
     // append wave header
     static constexpr int hdr_size = 0x2c;
@@ -739,6 +744,7 @@ void ShutdownSPU() {
     pwrite(wave_file, reinterpret_cast<void*>(header), hdr_size, 0);
     close(wave_file);
   }
+#endif
 }
 
 const Peripheral SPUPeripheral = {"SPU", InitSPUDevice, SPUDeviceReadHandler,

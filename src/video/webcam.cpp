@@ -1,5 +1,19 @@
 #include "webcam.h"
 
+#ifdef _WIN32
+namespace Emu293 {
+// TODO
+void webcam_init(const std::string &device) {
+}
+bool webcam_grab_frame_rgb565(uint8_t *out, int w, int h) {
+    return false;
+}
+void webcam_stop() {
+}
+}
+
+#else
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/time.h>
@@ -152,3 +166,4 @@ bool webcam_grab_frame_rgb565(uint8_t *out, int w, int h) {
     return true;
 }
 }
+#endif

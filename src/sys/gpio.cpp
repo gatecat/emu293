@@ -6,10 +6,8 @@
 #include <vector>
 using namespace std;
 
-#ifdef LITTLE_ENDIAN
 //a bit hacky but it works
 #define get_u32(arr) (*reinterpret_cast<uint32_t*>(&arr))
-#endif
 
 namespace Emu293 {
 
