@@ -1216,6 +1216,8 @@ uint32_t CPU::rol(uint32_t a, uint8_t sa, bool flags) {
   }
 }
 
+extern bool softreset_flag;
+
 void CPU::debugDump(bool noExit) {
   /* if ((pc % 4) == 0) {
     printf("mem[PC] = 0x%08x\n", read_memU32(pc));
@@ -1246,6 +1248,7 @@ void CPU::debugDump(bool noExit) {
      printf("mem[%08x] = %08x\n", 0xA06E0000 + i, read_memU32(0xA06E0000 + i));
  }*/
   if (!noExit) {
+#if 0
       //Simple shell
       while(cin) {
           cout << "> ";
@@ -1269,7 +1272,8 @@ void CPU::debugDump(bool noExit) {
           }
       }
       exit(1);
-
+#endif
+      softreset_flag = true;
   }
 }
 
