@@ -12,9 +12,9 @@ using namespace std;
 // Based on https://github.com/LiraNuna/hyperscan-emulator
 
 static int32_t sign_extend(uint32_t x, uint8_t b) {
-  uint32_t m = 1UL << (b - 1);
+  uint32_t m = 1ULL << (b - 1);
 
-  x = x & ((1UL << b) - 1);
+  x = x & ((1ULL << b) - 1);
   return (x ^ m) - m;
 }
 namespace Emu293 {
@@ -30,13 +30,13 @@ uint64_t muls_op(int32_t a, int32_t b) {
 uint64_t divu_op(uint32_t a, uint32_t b) {
     uint32_t low = a / b;
     uint32_t high = a % b;
-    return (uint64_t(high) << 32) | low;
+    return (uint64_t(high) << 32ULL) | low;
 }
 
 uint64_t divs_op(int32_t a, int32_t b) {
     uint32_t low = a / b;
     uint32_t high = a % b;
-    return (uint64_t(high) << 32) | low;
+    return (uint64_t(high) << 32ULL) | low;
 }
 
 
@@ -1086,7 +1086,7 @@ uint32_t CPU::add(uint32_t a, uint32_t b, bool flags) {
   uint32_t res = a + b;
   if (flags) {
     basic_flags(res);
-    C = (b > (0xFFFFFFFFU - a));
+    C = (b > (0xFFFFFFFFULL - a));
     V = (~(a ^ b) & (a ^ res)) >> 31;
   }
 
@@ -1097,7 +1097,7 @@ uint32_t CPU::addc(uint32_t a, uint32_t b, bool flags) {
   uint64_t res = uint64_t(a) + uint64_t(b) + C;
   if (flags) {
     basic_flags(res);
-    C = (res >> 32) & 0x1;
+    C = (res >> 32ULL) & 0x1;
     V = ((~(a ^ b) & (a ^ res)) >> 31) & 0x1;
   }
 

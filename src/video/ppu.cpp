@@ -23,9 +23,9 @@ using namespace std;
   (((var) >> (8 - (start) - (count))) % (1 << (count)))
 
 static int32_t sign_extend(uint32_t x, uint8_t b) {
-  uint32_t m = 1UL << (b - 1);
+  uint32_t m = 1ULL << (b - 1);
 
-  x = x & ((1UL << b) - 1);
+  x = x & ((1ULL << b) - 1);
   return (x ^ m) - m;
 }
 
@@ -164,9 +164,9 @@ static bool ppudma_workAvailable = false;
 
 // Slightly unusual pixel format
 // Packing: (msb first) Ab000000 00000000 RRRRRGGG GGGBBBBB
-static uint32_t textLayers[3][1024][1024];
-uint16_t rendered[480][640];
-uint16_t scaled[640*4*480*4];
+static uint32_t textLayers[3][1024][1024] = {0};
+uint16_t rendered[480][640] = {0};
+uint16_t scaled[640*4*480*4] = {0};
 
 uint16_t curr_line = 0;
 

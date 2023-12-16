@@ -6,8 +6,8 @@ WX_CONFIG=/usr/x86_64-w64-mingw32/lib/wx/config/msw-unicode-static-3.2
 src = $(wildcard *.cpp cpu/*.cpp dma/*.cpp stor/*.cpp sys/*.cpp video/*.cpp io/*.cpp audio/*.cpp)
 obj = $(src:.cpp=.win.o)
 
-CXXFLAGS = -std=c++11 -g -O3 `${WX_CONFIG} --cxxflags`
-LDFLAGS += -lz -lpng16 /usr/x86_64-w64-mingw32/lib/libpng.dll.a `x86_64-w64-mingw32-sdl2-config --static-libs` `${WX_CONFIG} --libs` -lssp -static
+CXXFLAGS = -std=c++11 -g -O3 `${WX_CONFIG} --cxxflags` -D_FILE_OFFSET_BITS=64
+LDFLAGS += -lz -lpng16 /usr/x86_64-w64-mingw32/lib/libpng.dll.a -L/usr/x86_64-w64-mingw32/lib -lmingw32 -lSDL2main /usr/x86_64-w64-mingw32/lib/libSDL2.a -Wl,--dynamicbase -Wl,--nxcompat -Wl,--high-entropy-va -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lshell32 -lsetupapi -lversion -luuid `${WX_CONFIG} --libs` -lssp -static
 all: emu293.exe
 
 %.win.o: %.cpp

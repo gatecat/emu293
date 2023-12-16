@@ -12,17 +12,18 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
-#define open64 open
+static_assert(sizeof(off_t) == 8);
 static int64_t pwrite64(int fd, void *buf, uint64_t count, uint64_t offset) {
-  _lseeki64(fd, offset, SEEK_SET);
+  if (_lseeki64(fd, offset, SEEK_SET) != offset)
+    exit(1);
   return _write(fd, buf, (unsigned int)count);
 }
 static int64_t pread64(int fd, void *buf, uint64_t count, uint64_t offset) {
-  _lseeki64(fd, offset, SEEK_SET);
+  if (_lseeki64(fd, offset, SEEK_SET) != offset)
+    exit(1);
   return _read(fd, buf, (unsigned int)count);
 }
 #endif
-
 using namespace std;
 
 namespace Emu293 {
@@ -130,7 +131,11 @@ static void updateCardStatus() {
 uint64_t offset = 0;
 
 bool SD_InitCard(const char *filename) {
+#ifdef _WIN32
+  imgfd = open(filename, O_RDWR | O_BINARY);
+#else
   imgfd = open64(filename, O_RDWR);
+#endif
   if (imgfd < 0) {
     printf("Failed to open SD image file %s.\n", filename);
     return false;
@@ -146,6 +151,7 @@ bool SD_InitCard(const char *filename) {
     printf("SD card image size is 0; did file fail to open?\n");
     return false;
   }
+  printf("SD card size is %llx\n", cardsize);
   if ((cardsize % file_alignment) != 0) {
     printf("Note: fixing alignment of SD card image file.\n");
     // append suitable number of bytes to end of file
@@ -488,6 +494,7 @@ void SD_Read(uint8_t *buf, int len) {
       bytecount += bytesread;
       if (bytesread != len) {
         perror("SD Error: read failed. Details");
+        exit(1);
       }
       /*
       for (int i = 0; i < len; i++) {
