@@ -9,6 +9,7 @@
 #include "video/webcam.h"
 #include "video/csi.h"
 
+#include "io/a8.h"
 #include "io/ir_gamepad.h"
 #include "audio/spu.h"
 
@@ -42,6 +43,7 @@ std::string sd_card;
 std::string save_dir = "../roms";
 
 bool nor_boot;
+bool is_a8;
 
 void null_configure() {};
 void zone3d_configure() { zone3d_pad_mode = true; }
@@ -179,6 +181,9 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[argidx], "-zone3d") == 0) {
           argidx++;
           zone3d_pad_mode = true;
+        } else if (strcmp(argv[argidx], "-a8") == 0) {
+          argidx++;
+          is_a8 = true;
         } else if (*(argv[argidx]) != '-') {
           break;
         } else {
@@ -197,6 +202,12 @@ usage:
       return 2;
     }
 
+  }
+
+  if (is_a8) {
+    sdl_input_handler = A8IOEvent;
+  } else {
+    sdl_input_handler = IRGamepadEvent;
   }
 
   uint32_t entryPoint, stackAddr;
@@ -232,6 +243,9 @@ usage:
       printf("Loaded ELF to RAM (ep=0x%08x)!\n", entryPoint);
     }
     scoreCPU.pc = entryPoint;
+
+    if (is_a8)
+      A8IOInit();
   };
   do_load_image();
 
@@ -253,7 +267,11 @@ usage:
     }
 
     if ((icount % 320) == 0) {
-      IRGamepadTick();
+      if (is_a8) {
+        A8IOTick();
+      } else {
+        IRGamepadTick();
+      }
     }
 
     if ((icount % 200) == 0) {

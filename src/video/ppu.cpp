@@ -684,6 +684,8 @@ SDL_Window *ppu_window;
 SDL_Renderer *ppuwin_renderer;
 int video_scale = 1;
 
+SDLInputHandler sdl_input_handler;
+
 static void PPURender() {
   for (int y = 0; y < 480; y++) {
     for (int x = 0; x < 640; x++) {
@@ -965,7 +967,7 @@ void PPUUpdate() {
 
       }
     }
-    IRGamepadEvent(&e);
+    sdl_input_handler(&e);
   }
   PPUFlip();
   // SDL_Delay(1000);
