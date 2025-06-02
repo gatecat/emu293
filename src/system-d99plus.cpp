@@ -92,6 +92,19 @@ uint16_t read_memU16(uint32_t addr) {
              (addr < (IMEM_START_ALT + IMEM_SIZE))) {
     printf("Read from imem 0x%08x at 0x%08x\n", addr, currentCPU->pc);
     return get_uint16le(&(imem[addr - IMEM_START_ALT]));
+  } else if ((addr >= PERIPH_START) && (addr < (PERIPH_START + PERIPH_SIZE))) {
+    uint8_t pAddr = (addr >> 16) & 0xFF;
+    if (peripherals[pAddr] != NULL) {
+      return peripherals[pAddr]->regRead(addr & 0xFFFF);
+    } else {
+      if (pAddr != 0x05)
+        printf("Read32 from unmapped peripheral location 0x%08x at 0x%08x\n",
+               addr, currentCPU->pc);
+      /*  if ((pAddr != 0x21) && (pAddr != 0x05))
+          currentCPU->debugDump();*/
+
+      return 0;
+    }
   } else {
     printf("Read16 from unmapped memory location 0x%08x at 0x%08x\n", addr,
            currentCPU->pc);
@@ -106,6 +119,16 @@ void write_memU16(uint32_t addr, uint16_t val) {
     set_uint16le(&(ram[addr - RAM_START]), val);
   } else if ((addr >= RAM_START_ALIAS) && (addr < (RAM_START_ALIAS + RAM_SIZE))) {
     set_uint16le(&(ram[addr - RAM_START_ALIAS]), val);
+  } else if ((addr >= PERIPH_START) && (addr < (PERIPH_START + PERIPH_SIZE))) {
+    uint8_t pAddr = (addr >> 16) & 0xFF;
+    // printf("Paddr = 0x%02x\n",pAddr);
+    if (peripherals[pAddr] != NULL) {
+      peripherals[pAddr]->regWrite(addr & 0xFFFF, val);
+    } else {
+      // printf("Write 0x%08x to unmapped peripheral location 0x%08x at
+      // 0x%08x\n",
+      //         val, addr, currentCPU->pc);
+    }
   } else {
     // printf("Write 0x%04x to unmapped memory location 0x%08x at 0x%08x\n",
     // val,

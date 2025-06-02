@@ -41,7 +41,7 @@ std::string elf_file;
 std::string sd_card;
 std::string save_dir = "../roms";
 
-bool nor_boot;
+bool nor_boot, igame_boot;
 
 void null_configure() {};
 void zone3d_configure() { zone3d_pad_mode = true; }
@@ -179,6 +179,9 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[argidx], "-zone3d") == 0) {
           argidx++;
           zone3d_pad_mode = true;
+        } else if (strcmp(argv[argidx], "-igame") == 0) {
+          argidx++;
+          igame_boot = true;
         } else if (*(argv[argidx]) != '-') {
           break;
         } else {
@@ -193,7 +196,7 @@ int main(int argc, char *argv[]) {
 
     if (false) {
 usage:
-      printf("Usage: ./emu293 [-cam /dev/videoN] [-scale {1,2,3,4}] [-zone3d] [-nor] lead.sys sdcard.img\n");
+      printf("Usage: ./emu293 [-cam /dev/videoN] [-scale {1,2,3,4}] [-zone3d] [-igame] [-nor] lead.sys sdcard.img\n");
       return 2;
     }
 
@@ -217,7 +220,12 @@ usage:
 
   //	scoreCPU.cr29 = 0x20000000;
   auto do_load_image = [&]() {
-    if (nor_boot) {
+    if (igame_boot) {
+      if (!LoadIGameToRAM(elf_file.c_str(), entryPoint)) {
+        printf("Failed to load iGame binary\n");
+        exit(1);
+      }
+    } else if (nor_boot) {
       if (!LoadNORToRAM(elf_file.c_str(), entryPoint, stackAddr)) {
         printf("Failed to load NOR\n");
         exit(1);

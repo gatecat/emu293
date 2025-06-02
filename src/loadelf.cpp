@@ -150,5 +150,23 @@ namespace Emu293 {
 		return true;
 	}
 
+	bool LoadIGameToRAM(const char *filename, uint32_t &entryPoint) {
+		FILE  *binFile;
+		binFile = fopen(filename,"rb");
+		if(!binFile) {
+			printf("Failed to open IGame ROM file\n");
+			return false;
+		}
+		uint32_t load_addr = 0xa00001fc;
+		//fseek(romFile, 0, 0);
+		uint8_t byte = 0;
+		while (fread(&byte,1,1,binFile)) {
+			write_memU8(load_addr++, byte);
+		}
+		fclose(binFile);
+		entryPoint = 0xa0001020;
+		return true;
+	}
+
 }
 
