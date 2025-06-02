@@ -9,6 +9,9 @@
 #include "video/webcam.h"
 #include "video/csi.h"
 
+#include "sys/gpio.h"
+
+
 #include "io/ir_gamepad.h"
 #include "audio/spu.h"
 

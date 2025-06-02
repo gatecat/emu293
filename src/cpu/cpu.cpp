@@ -149,6 +149,14 @@ void CPU::step() {
     debugDump(false);
   }
 
+  // if (pc < lastpc || pc > (lastpc + 4)) {
+  //   printf("%08x %08x -> %08x \n", r0, lastpc, pc);
+  //   if (pc == 0xa1e01020) {
+  //     exit(1);
+  //   }
+  // }
+
+
   lastpc = pc;
 
   if (queuedInterrupt != 0) {
@@ -175,7 +183,7 @@ void CPU::step() {
 
       // Jump to interrupt
       pc = cr3 + 0x200 + (irq * 4);
-      // printf("Jumping to IRQ handler at %08x\n", pc);
+      // printf("Jumping to IRQ handler at %08x (irq=%d)\n", pc, irq);
       queuedInterrupt &= ~(1ULL << irq);
     }
   }

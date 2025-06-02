@@ -90,11 +90,9 @@ namespace Emu293 {
 			if (check_bit(ckg_regs[CKG_TMR_CLKSEL], 8 + i) != is_32khz)
 				continue;
 			if(check_bit(timer_regs[i][TIMER_CTRL],TIMER_CTRL_EN) && (check_bit(timer_regs[i][TIMER_CTRL_CCP],31)==check_bit(timer_regs[i][TIMER_CTRL_CCP],30))) {
-				//printf("tck tmr%d\n",i);
 				if(timer_regs[i][TIMER_UPCOUNT] <= 0xFFFF) {
 					timer_regs[i][TIMER_UPCOUNT]++;
 				} else {
-					//printf("ovf tmr%d\n",i);
 					timer_regs[i][TIMER_UPCOUNT] = timer_regs[i][TIMER_PRELOAD];
 					if(check_bit(timer_regs[i][TIMER_CTRL],TIMER_CTRL_IRQ_EN)) {
 						SetIRQState(56, true);
