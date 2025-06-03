@@ -3,6 +3,8 @@
 #include "../sys/irq_if.h"
 #include "../system.h"
 #include "../io/ir_gamepad.h"
+#include "../io/igame_rf.h"
+
 #include "csi.h"
 
 #include <SDL2/SDL.h>
@@ -966,6 +968,7 @@ void PPUUpdate() {
       }
     }
     IRGamepadEvent(&e);
+    IGameRFEvent(&e);
   }
   PPUFlip();
   // SDL_Delay(1000);

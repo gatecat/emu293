@@ -13,6 +13,8 @@
 
 
 #include "io/ir_gamepad.h"
+#include "io/igame_rf.h"
+
 #include "audio/spu.h"
 
 #include "system.h"
@@ -149,46 +151,6 @@ std::string state_file(int slot) {
 
 }
 
-GPIOState ioi_last_clock;
-uint8_t ioi_buf;
-int ioi_count;
-
-std::vector<uint8_t> ioi_bytes;
-
-void ioi_listener(GPIOPort port, uint8_t pin, GPIOState newState) {
-  if (pin == 1 && newState == GPIO_HIGH && ioi_count > 0) {
-    if (ioi_bytes.empty() || ioi_count > 0) {
-      printf("IOI xfer:\n");
-      for (auto b : ioi_bytes)
-        printf(" %02x", b);
-      if (ioi_count > 0) {
-        printf(" %d'b", ioi_count);
-        for (int i = 0; i < ioi_count; i++)
-          printf("%d", (ioi_buf >> (7 - ioi_count)) & 0x1);
-      }
-      printf("\n");
-    }
-    ioi_count = 0;
-    ioi_buf = 0;
-    ioi_bytes.clear();
-  } else if (pin == 4 && newState == GPIO_HIGH && ioi_last_clock == GPIO_LOW) {
-    bool bit = GetGPIOState(GPIO_PORT_I, 5) == GPIO_HIGH;
-    ioi_buf = (ioi_buf >> 1) | (bit ? 0x80 : 0x00);
-    ++ioi_count;
-    if (ioi_count >= 8) {
-      ioi_bytes.push_back(ioi_buf);
-      ioi_buf = 0;
-      ioi_count = 0;
-    }
-  }
-  ioi_last_clock = GetGPIOState(GPIO_PORT_I, 4);
-}
-
-void initIGameGpio() {
-  AttachGPIOListener(GPIO_PORT_I, 1, ioi_listener);
-  AttachGPIOListener(GPIO_PORT_I, 4, ioi_listener);
-}
-
 int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_EVERYTHING);
 
@@ -287,7 +249,7 @@ usage:
 
   system_init(&scoreCPU);
   if (igame_boot) {
-    initIGameGpio();
+    IGameRFInit();
   }
   write_memU32(0xFFFFFFEC, 1);
   int icount = 0;
@@ -306,7 +268,11 @@ usage:
     }
 
     if ((icount % 320) == 0) {
-      IRGamepadTick();
+      if (igame_boot) {
+        IGameRFTick();
+      } else {
+        IRGamepadTick();
+      }
     }
 
     if ((icount % 200) == 0) {
