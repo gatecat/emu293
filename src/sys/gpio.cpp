@@ -9,7 +9,9 @@ using namespace std;
 //a bit hacky but it works
 #define get_u32(arr) (*reinterpret_cast<uint32_t*>(&arr))
 
+
 namespace Emu293 {
+static CPU *currentCPU;
 
 	/*
 	 * Reg addresses are LITTLE ENDIAN byte addresses relative to start of GPIO peripherals
@@ -47,6 +49,7 @@ namespace Emu293 {
 
 	struct RegBitInfo {
 		bool firesUpdate = false;
+		bool inputData = false;
 		GPIOPort port;
 		uint8_t pin;
 	};
@@ -61,10 +64,12 @@ namespace Emu293 {
 	const uint8_t GPIOInterrupt = 28;
 
 	void InitGPIODevice(PeripheralInitInfo initInfo) {
+		currentCPU = initInfo.currentCPU;
 		//reset bitinfo
 		for(int i = 0; i < GPIORegCount; i++) {
 			for(int j = 0; j < 8; j++) {
 				gpio_reg_bitinfo[i][j].firesUpdate = false;
+				gpio_reg_bitinfo[i][j].inputData = false;
 			}
 		}
 		for(int i = 0; i < GPIOPortCount; i++) {
@@ -74,6 +79,10 @@ namespace Emu293 {
 			//mark input regs as readonly
 			for(uint16_t j = PortInfo[i].InputDataReg; j < (PortInfo[i].InputDataReg + numBytes);j++) {
 				gpio_reg_readonly[j] = true;
+				for(int k = 0; k < 8; k++) {
+					gpio_reg_bitinfo[j][k].inputData = true;
+					gpio_reg_bitinfo[j][k].port = (GPIOPort)i;
+				}
 			}
 			//set output regs listener arrays
 			uint8_t pin = 0;
@@ -81,7 +90,7 @@ namespace Emu293 {
 				for(int k = 0; k < 8; k++) {
 					gpio_reg_bitinfo[j][k].firesUpdate = true;
 					gpio_reg_bitinfo[j][k].port = (GPIOPort)i;
-					gpio_reg_bitinfo[j][k].pin = pin;
+					gpio_reg_bitinfo[j][k].pin = pin++;
 				}
 			}
 
@@ -91,7 +100,7 @@ namespace Emu293 {
 				for(int k = 0; k < 8; k++) {
 					gpio_reg_bitinfo[j][k].firesUpdate = true;
 					gpio_reg_bitinfo[j][k].port = (GPIOPort)i;
-					gpio_reg_bitinfo[j][k].pin = pin;
+					gpio_reg_bitinfo[j][k].pin = pin++;
 				}
 			}
 
@@ -101,7 +110,7 @@ namespace Emu293 {
 				for(int k = 0; k < 8; k++) {
 					gpio_reg_bitinfo[j][k].firesUpdate = true;
 					gpio_reg_bitinfo[j][k].port = (GPIOPort)i;
-					gpio_reg_bitinfo[j][k].pin = pin;
+					gpio_reg_bitinfo[j][k].pin = pin++;
 				}
 			}
 			if(PortInfo[i].InputPDReg != 0xFFFF) {
@@ -111,7 +120,7 @@ namespace Emu293 {
 					for(int k = 0; k < 8; k++) {
 						gpio_reg_bitinfo[j][k].firesUpdate = true;
 						gpio_reg_bitinfo[j][k].port = (GPIOPort)i;
-						gpio_reg_bitinfo[j][k].pin = pin;
+						gpio_reg_bitinfo[j][k].pin = pin++;
 					}
 				}
 			}
@@ -164,6 +173,8 @@ namespace Emu293 {
 		}
 	}
 	uint32_t GPIODeviceReadHandler(uint16_t addr) {
+		// if (gpio_reg_bitinfo[addr][0].inputData)
+		//	printf("GPIO read %c from %08x\n", PortInfo[gpio_reg_bitinfo[addr][0].port].PortLetter, currentCPU->pc);
 		if(addr < GPIORegCount) {
 			return get_uint32le(&(gpio_reg[addr]));
 		} else {
@@ -174,6 +185,8 @@ namespace Emu293 {
 
 	void FireUpdate(GPIOPort port, uint8_t pin) {
 		GPIOState newState = GetGPIOState(port, pin);
+		// printf("GPIO set %c.%d=%d from %08x\n", PortInfo[port].PortLetter, (int)pin, (newState == GPIO_HIGH), currentCPU->pc);
+
 		for(auto iter = listeners[port][pin].begin(); iter != listeners[port][pin].end(); ++iter) {
 			(*iter)(port, pin, newState);
 		}
