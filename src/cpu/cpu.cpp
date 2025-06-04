@@ -256,7 +256,7 @@ void CPU::link16() {
   }
 }
 
-void CPU::exec32(const Instruction32 &insn) {
+void CPU::exec32(Instruction32 insn) {
   switch (insn.OP) {
   case 0x00: {
     uint32_t &rD = r[insn.spform.rD];
@@ -751,7 +751,7 @@ void CPU::exec32(const Instruction32 &insn) {
   }
 }
 
-void CPU::exec16(const Instruction16 &insn) {
+void CPU::exec16(Instruction16 insn) {
   switch (insn.OP) {
   case 0x00:
     switch (insn.rform.func4) {

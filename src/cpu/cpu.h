@@ -4,7 +4,8 @@ using namespace std;
 namespace Emu293 {
 
 class CPU {
-protected:
+public:
+
   uint64_t queuedInterrupt;
   bool last_ien;
 
@@ -145,7 +146,6 @@ protected:
     uint16_t encoded;
   };
 
-public:
   CPU();
 
   /**
@@ -177,9 +177,9 @@ public:
   void state(SaveStater &s);
 
 protected:
-  void exec16(const Instruction16 &insn);
+  void exec16(Instruction16 insn);
 
-  void exec32(const Instruction32 &insn);
+  void exec32(Instruction32 insn);
 
   void branch(uint32_t address, bool link);
 
