@@ -165,6 +165,13 @@ namespace Emu293 {
 		}
 		fclose(binFile);
 		entryPoint = 0xa0001020;
+
+		// igame stubs
+		write_memU8(0xa1e01009, '6');
+		write_memU8(0xa1e0100a, '6');
+		write_memU32(0xa1e0101c, 0x1);
+		write_memU32(0xa1e01020, 0x8003bc08);
+
 		return true;
 	}
 

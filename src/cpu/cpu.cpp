@@ -151,9 +151,6 @@ void CPU::step() {
 
   // if (pc < lastpc || pc > (lastpc + 4)) {
   //   printf("%08x %08x -> %08x \n", r0, lastpc, pc);
-  //   if (pc == 0xa1e01020) {
-  //     exit(1);
-  //   }
   // }
 
 

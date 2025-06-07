@@ -249,10 +249,6 @@ void system_init(CPU *cpu) {
   write_memU32(0xBF000D40, 0x8003bc08);
   write_memU32(0xa0fffff8, 0x12345678);
 
-  // igame stubs
-  write_memU32(0xa1e0101c, 0x1);
-  write_memU32(0xa1e01020, 0x8003bc08);
-
 }
 
 void system_softreset() {
