@@ -29,7 +29,7 @@ static void fill_rx_packet() {
     rx_packet.resize(24);
     for (int i = 0; i < 24; i++)
         rx_packet.at(i) = 0;
-    rx_packet[0] = 0x50;
+    rx_packet[0] = 0x56;
     rx_packet[6] = accel_x & 0xFF;
     rx_packet[7] = (accel_x >> 8) & 0xFF;
     rx_packet[8] = accel_y & 0xFF;
@@ -43,29 +43,29 @@ static void fill_rx_packet() {
 static void handle_command_byte() {
     command = ioi_buf;
     rx_buf.clear();
-    printf("%8lld command: %02x\n", ioi_time, command);
+    // printf("%8lld command: %02x\n", ioi_time, command);
 
     if (command == 0x05) { // write tx packet buffer
         tx_packet.clear();
     } else if (command == 0xd0) { // do tx
         tx_timestamp = ioi_time;
         tx_seq = 1;
-        printf("%8lld TX packet:", tx_timestamp);
-        for (auto b : tx_packet) {
-            printf(" %02x", b);
-        }
-        printf("\n");
+        // printf("%8lld TX packet:", tx_timestamp);
+        // for (auto b : tx_packet) {
+        //     printf(" %02x", b);
+        // }
+        // printf("\n");
     } else if (command == 0xc0) { // do rx?
         tx_timestamp = ioi_time;
         if (tx_seq == 2)
             SetGPIOInputState(GPIO_PORT_I, 2, 1); // status high
     } else if (command == 0x45) { // read rx packet buffer
         rx_buf = rx_packet;
-        printf("%8lld read RX packet:", ioi_time);
-        for (auto b : rx_buf) {
-            printf(" %02x", b);
-        }
-        printf("\n");
+        // printf("%8lld read RX packet:", ioi_time);
+        // for (auto b : rx_buf) {
+        //     printf(" %02x", b);
+        // }
+        // printf("\n");
         SetGPIOInputState(GPIO_PORT_I, 2, 1); // status high
     }
 }
@@ -122,14 +122,14 @@ void IGameRFTick() {
     ++ioi_time;
 
     if (tx_timestamp != 0 && (tx_seq == 1) && ioi_time >= (tx_timestamp + 5)) { // simulate a reply some time after tx
-        printf("Simulating end of TX\n");
+        // printf("Simulating end of TX\n");
         SetGPIOInputState(GPIO_PORT_I, 2, 0); // status low, fire IRQ
         FireInterrupt(GPIO_PORT_I, 2, GPIO_FALLING);
         tx_seq = 2;
     }
 
     if (tx_timestamp != 0 && (tx_seq == 2) && ioi_time >= (tx_timestamp + 30)) { // simulate a reply some time after tx
-        printf("Sending RF packet\n");
+        // printf("Sending RF packet\n");
         fill_rx_packet();
         SetGPIOInputState(GPIO_PORT_I, 2, 0); // status low, fire IRQ
         FireInterrupt(GPIO_PORT_I, 2, GPIO_FALLING);

@@ -506,8 +506,8 @@ static void spu_mix_channels(int16_t &l, int16_t &r) {
     rm += int32_t(spu_channels[ch].iirr);
   }
   if (check_bit(spu_regs[spu_ctrl], spu_ctrl_softch_en)) {
-    lm += int32_t(softch_l);
-    rm += int32_t(softch_r);
+    lm += int32_t(softch_l) * 8;
+    rm += int32_t(softch_r) * 8;
   }
   lm /= 8;
   rm /= 8;
